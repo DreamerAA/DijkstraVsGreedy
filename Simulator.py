@@ -60,6 +60,7 @@ class SimulationSettings:
     target: int
     need_show: bool = False
     need_print: bool = False
+    need_save_path: bool = False
 
 
 def show_graph(G, gpath: GraphPath = None):
@@ -100,7 +101,7 @@ class Simulator:
         if ss.source == ss.target:
             return [ss.source]
         n_curr = ss.source
-        path = [n_curr]
+        # path = [n_curr]
         length = 0
         while n_curr != ss.target:
             adj = self.igraph.adj[n_curr]
@@ -114,10 +115,12 @@ class Simulator:
 
             if len(self.igraph.adj[p_n_curr]) > 1 or p_n_curr == ss.target:
                 n_curr = p_n_curr
-                path.append(n_curr)
+                # if ss.need_save_path:
+                # path.append(n_curr)
                 length = length + min_weight
 
-        return GraphPath(ss.source, ss.target, path, length)
+        return GraphPath(ss.source, ss.target, [], length)
+        # return GraphPath(ss.source, ss.target, path, length)
 
     def dijkstra_search(self):
         ss = self.settings
