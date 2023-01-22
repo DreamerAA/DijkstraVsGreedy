@@ -14,26 +14,35 @@ import os.path
 from multiprocessing import Process, Pool
 
 
-def sim_wrap(wrap):
-    count, igraph, p, u = wrap
-    res = []
-    for _ in range(count):
-        source, target = Simulator.choose_source_target(igraph)
-        unc = UncertaintyCond(p, u)
-        ss = SimulationSettings(unc, need_print=False,
-                                source=source, target=target)
-        simulator = Simulator(igraph, ss)
-        res.append(simulator.run())
-    return res
+def generateAbGraphs():
 
+    count = 1000
+    bar = np.ones(shape=(count, count), dtype=bool)
 
-def sim(igraph, p, u):
-    source, target = Simulator.choose_source_target(igraph)
-    unc = UncertaintyCond(p, u)
-    ss = SimulationSettings(unc, need_print=False,
-                            source=source, target=target)
-    simulator = Simulator(igraph, ss)
-    return simulator.run()
+    def write(c, d, n, graph, path):
+        fpath = path + f"c={c}_d={d}_n={n}"
+        nx.write_pajek(graph, fpath)
+        bar[c, d] = False
+
+    path = "../Results/scale_free_graphs_ab/"
+    onlyfiles = [f for f in listdir(path) if isfile(join(path, f))]
+    for file in onlyfiles:
+        params = [p.split("=")[1] for p in file.split("_")]
+        rc, rd, _ = [int(p) for p in params]
+        bar[rc, rd] = False
+
+    for n in range(584, 984, 1):
+        for m in range(n-1, 1, -1):
+            print(f" --- GG: n={n} m={m}")
+            graph = GraphCreator.generateBarabasiAlbertGraph(n, m)
+            degree = int(round(GraphCreator.extractAvareageDegree(graph)))
+            diam = nx.diameter(graph)
+
+            if bar[degree, diam]:
+                write(degree, diam, n, graph, path)
+                print(f" --- Write: c = {degree}, d = {diam}")
+
+            del graph
 
 
 def genarate_grid(dim, diameter, periodic, path="../Results/grid_graphs/"):
@@ -102,7 +111,7 @@ def simulation_on_regular_graph_zch():
             igraph = find_regular_graph(connect, diam)
 
             print(' --- Simulation start')
-            sim_results = Parallel(n_jobs=12)(delayed(sim)(igraph, p, u)
+            sim_results = Parallel(n_jobs=12)(delayed(Simulator.sim)(igraph, p, u)
                                               for i in range(count))
 
             dj_lengths = [r[0] for r in sim_results]
@@ -161,7 +170,7 @@ def simulation_on_regular_graph_zup():
 
     for i, u in enumerate(a_u):
         for j, p in enumerate(a_p):
-            sim_results = Parallel(n_jobs=15)(delayed(sim)(igraph, p, u)
+            sim_results = Parallel(n_jobs=15)(delayed(Simulator.sim)(igraph, p, u)
                                               for i in range(count))
             dj_lengths = [r[0] for r in sim_results]
             gr_lengths = [r[1] for r in sim_results]
@@ -222,7 +231,7 @@ def simulation_on_grid_graph_zch():
             rc, rd, igraph = genarate_grid(dim, diam, periodic)
 
             print(' --- Simulation start')
-            sim_results = Parallel(n_jobs=12)(delayed(sim)(igraph, p, u)
+            sim_results = Parallel(n_jobs=12)(delayed(Simulator.sim)(igraph, p, u)
                                               for i in range(count))
 
             dj_lengths = [r[0] for r in sim_results]
@@ -269,8 +278,11 @@ def simulation_on_grid_graph_zch():
 
 
 def simulation_on_grid_graph_zup():
-    count = 1000
-    C, D, igraph = genarate_grid(5, 5, True)
+    # C, D, igraph = genarate_grid(4, 6, )
+    dims = 6*np.ones(shape=(4,), dtype=int)
+    igraph = nx.grid_graph(dim=list(dims), periodic=True)
+    C = GraphCreator.extractAvareageDegree(igraph)
+    D = nx.diameter(igraph)
 
     a_u = np.array([1, 5, 1e1, 5e1, 1e2, 5e2, 1e3, 5e3,
                     1e4, 5e4, 1e5, 5e5, 1e6, 5e6, 1e7, 5e7], dtype=np.float64)
@@ -279,16 +291,21 @@ def simulation_on_grid_graph_zup():
     # a_u = np.array([1, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7], dtype=np.float64)
     a_p = np.arange(0, 0.71, 0.01, dtype=np.float64)
 
+    num_proc = 12
+    count = 300  # [41, 44] sec
+    step = int(count/num_proc)
+
     res_shape = (len(a_u), len(a_p))
     mfpt_dj = np.zeros(shape=res_shape)
     mfpt_gr = np.zeros(shape=res_shape)
     print("C, D:", C, D)
     for i, u in enumerate(a_u):
         for j, p in enumerate(a_p):
-            sim_results = Parallel(n_jobs=12)(delayed(sim)(igraph, p, u)
-                                              for _ in range(count))
-            dj_lengths = [r[0] for r in sim_results]
-            gr_lengths = [r[1] for r in sim_results]
+            args = [(step, igraph.copy(), p, u) for i in range(num_proc)]
+            sim_results = Parallel(n_jobs=num_proc)(delayed(Simulator.sim_wrap)(arg)
+                                                    for arg in args)
+            dj_lengths = [r[0] for res_chunk in sim_results for r in res_chunk]
+            gr_lengths = [r[1] for res_chunk in sim_results for r in res_chunk]
 
             dj_mfpt = sum(dj_lengths)/count
             gr_mfpt = sum(gr_lengths)/count
@@ -299,7 +316,7 @@ def simulation_on_grid_graph_zup():
             print(" --- p:", p)
             print(' --- MFPT Dijkstra:', dj_mfpt)
             print(' --- MFPT Greedy:', gr_mfpt)
-            print(' --- Ln (z):', np.log10(gr_mfpt/dj_mfpt))
+            print(' --- Ln (z):', np.log(gr_mfpt/dj_mfpt))
             print('')
 
     coord_names = ["log10(u)", "p"]
@@ -307,7 +324,7 @@ def simulation_on_grid_graph_zup():
     df = xr.Dataset({
         "dj_mfpt": (coord_names, mfpt_dj),
         "gr_mfpt": (coord_names, mfpt_gr),
-        "lnz": (coord_names, np.log10(np.divide(mfpt_gr, mfpt_dj))),
+        "lnz": (coord_names, np.log(np.divide(mfpt_gr, mfpt_dj))),
     },
         coords={
         coord_names[0]: np.log10(a_u),
@@ -355,7 +372,7 @@ def simulation_on_small_world_graph_zch():  # not checked
             av_connect = sum(
                 list(real_connect.values()))/len(real_connect)
 
-            sim_results = Parallel(n_jobs=15)(delayed(sim)(igraph, p, u)
+            sim_results = Parallel(n_jobs=15)(delayed(Simulator.sim)(igraph, p, u)
                                               for i in range(count))
 
             dj_lengths = [r[0] for r in sim_results]
@@ -420,7 +437,7 @@ def simulation_on_small_world_graph_zup():  # not checked
     print("C, D:", rc, rd)
     for i, u in enumerate(a_u):
         for j, p in enumerate(a_p):
-            sim_results = Parallel(n_jobs=15)(delayed(sim)(graph, p, u)
+            sim_results = Parallel(n_jobs=15)(delayed(Simulator.sim)(graph, p, u)
                                               for i in range(count))
             dj_lengths = [r[0] for r in sim_results]
             gr_lengths = [r[1] for r in sim_results]
@@ -456,22 +473,25 @@ def simulation_on_small_world_graph_zup():  # not checked
     plt.show()
 
 
-def simulation_scale_free_graph_zup():
+def simulation_directed_scale_free_graph_zup():
 
-    graph = GraphCreator.generateScaleFreeGraph(1e3, 0.3, 0.3, 0.4, 1, 1)
+    graph = GraphCreator.generateDirectedScaleFreeGraph(
+        1e3, 0.2, 0.4, 0.4, 1, 1)
     rc = GraphCreator.extractAvareageDegree(graph)
     rd = nx.diameter(graph)
 
-    count = 300
-    a_u = np.array([1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8], dtype=np.float64)
-    a_p = np.array([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7], dtype=np.float64)
+    count = 500
+
+    a_u = np.array([10**i for i in range(5, 21)], dtype=np.float64)
+    # a_p = np.array([0.05, 0.1, 0.15, 0.2, 0.25, 0.3,
+    #                0.35, 0.4], dtype=np.float64)
     # a_u = np.array([1e2, 5e2, 1e3, 5e3, 1e4, 5e4, 1e5, 5e5, 1e6, 5e6, 1e7, 5e7, 1e8, 5e8,
     #                1e9, 5e9, 1e10, 5e10, 1e11, 5e11, 1e12, 5e12], dtype=np.float64)
-    # a_p = np.arange(0, 0.71, 0.005, dtype=np.float64)
+    a_p = np.arange(0, 0.101, 0.001, dtype=np.float64)
 
     res_shape = (len(a_u), len(a_p))
 
-    fname = f"../Results/ScaleFreeGraphResults/free_scale_u_from_{a_u[0]}_to_{a_u[-1]}_p_from_{a_p[0]}_to_{a_p[-1]}_c={rc}_D={rd}.nc"
+    fname = f"../Results/DirectedScaleFreeGraphResults/sfgr_u_from_{a_u[0]}_to_{a_u[-1]}_p_from_{a_p[0]}_to_{a_p[-1]}_c={rc}_D={rd}.nc"
     a_z = np.empty(shape=res_shape)
     a_z[:] = np.nan
 
@@ -489,7 +509,7 @@ def simulation_scale_free_graph_zup():
             coord_names[1]: a_p,
         })
         df.to_netcdf(
-            f"../Results/ScaleFreeGraphResults/free_scale_u_from_{a_u[0]}_to_{a_u[-1]}_p_from_{a_p[0]}_to_{a_p[-1]}_c={rc}_D={rd}.nc")
+            f"../Results/DirectedScaleFreeGraphResults/sfgr_u_from_{a_u[0]}_to_{a_u[-1]}_p_from_{a_p[0]}_to_{a_p[-1]}_c={rc}_D={rd}.nc")
 
     print("C, D:", rc, rd)
     for i, u in enumerate(a_u):
@@ -504,7 +524,7 @@ def simulation_scale_free_graph_zup():
 
             t = Timer()
             t.start()
-            sim_results = Parallel(n_jobs=16)(delayed(sim)(graph, p, u)
+            sim_results = Parallel(n_jobs=16)(delayed(Simulator.sim)(graph, p, u)
                                               for i in range(count))
             dj_lengths = [r[0] for r in sim_results]
             gr_lengths = [r[1] for r in sim_results]
@@ -523,7 +543,7 @@ def simulation_scale_free_graph_zup():
             print('')
 
 
-def simulation_scale_free_graph_zch():
+def simulation_directed_scale_free_graph_zch():
     a_diams = np.arange(3, stop=9, dtype=int)
     a_connect = np.arange(3, stop=9, dtype=int)
 
@@ -537,7 +557,7 @@ def simulation_scale_free_graph_zch():
     num_proc = 10
     step = int(count/num_proc)
 
-    fname = f"../Results/ScaleFreeGraphResults/sfgr_d_from_{a_diams[0]}_to_{a_diams[-1]}_c_from_{a_connect[0]}_to_{a_connect[-1]}_u={u}_p={p}.nc"
+    fname = f"../Results/DirectedScaleFreeGraphResults/sfgr_d_from_{a_diams[0]}_to_{a_diams[-1]}_c_from_{a_connect[0]}_to_{a_connect[-1]}_u={u}_p={p}.nc"
     a_z = np.empty(shape=res_shape)
     a_z[:] = np.nan
 
@@ -570,11 +590,11 @@ def simulation_scale_free_graph_zch():
             t.start()
 
             print(' --- Create graph')
-            _, _, graph = GraphCreator.getScaleFreeGraph(connect, diam)
+            _, _, graph = GraphCreator.getDirectedScaleFreeGraph(connect, diam)
 
             print(' --- Simulation start')
             args = [(step, graph.copy(), p, u) for i in range(num_proc)]
-            sim_results = Parallel(n_jobs=num_proc)(delayed(sim_wrap)(arg)
+            sim_results = Parallel(n_jobs=num_proc)(delayed(Simulator.sim_wrap)(arg)
                                                     for arg in args)
 
             dj_lengths = [r[0] for res_chunk in sim_results for r in res_chunk]
@@ -590,6 +610,81 @@ def simulation_scale_free_graph_zch():
             print(" --- d:", diam)
             print(' --- Ln (z):', a_z[i][j])
             t.stop()
+
+
+def simulation_scale_free_graph_ab_zup():
+
+    # real_diameter=8
+    # av_connect=117.63000341148297
+    rc, rd = 4, 8
+    _, _, graph = GraphCreator.getScaleFreeGraphAB(rc, rd)
+
+    num_proc = 10
+    count = 1000  # [41, 44] sec
+    step = int(count/num_proc)
+
+    # a_u = np.array([1e5, 1e4], dtype=np.float64)
+    # a_p = np.array([0.2, 0.3], dtype=np.float64)
+    a_u = np.array([1e3, 5e3, 1e4, 5e4, 1e5, 5e5, 1e6,
+                   5e6, 1e7, 5e7, 1e8, 5e8, 1e9], dtype=np.float64)
+    # a_u = np.array([1e2, 1e3, 1e4, 1e5, 1e6,
+    #                 1e7, 1e8, 1e9], dtype=np.float64)
+    a_p = np.arange(0, 0.0205, 0.0005, dtype=np.float64)
+
+    res_shape = (len(a_u), len(a_p))
+
+    fname = f"../Results/ScaleFreeGraphABResults/u_from_{a_u[0]}_to_{a_u[-1]}_p_from_{a_p[0]}_to_{a_p[-1]}_c={rc}_D={rd}.nc"
+    a_z = np.empty(shape=res_shape)
+    a_z[:] = np.nan
+
+    if os.path.isfile(fname):
+        df = xr.load_dataset(fname)
+        a_z = df.ln10_z.to_numpy()
+
+    def save():
+        coord_names = ["log10(u)", "p"]
+        df = xr.Dataset({
+            "ln10_z": (coord_names, a_z),
+        },
+            coords={
+            coord_names[0]: np.log10(a_u),
+            coord_names[1]: a_p,
+        })
+        df.to_netcdf(fname)
+
+    print("C, D:", GraphCreator.extractAvareageDegree(graph), rd)
+    for i, u in enumerate(a_u):
+        for j, p in enumerate(a_p):
+            if ~np.isnan(a_z[i][j]):
+                print(" --- Skip")
+                print(" --- u:", u)
+                print(" --- p:", p)
+                print(' --- Ln (z):', a_z[i][j])
+                print('')
+                continue
+
+            t = Timer()
+            t.start()
+
+            args = [(step, graph.copy(), p, u) for i in range(num_proc)]
+            sim_results = Parallel(n_jobs=num_proc)(delayed(Simulator.sim_wrap)(arg)
+                                                    for arg in args)
+
+            dj_lengths = [r[0] for res_chunk in sim_results for r in res_chunk]
+            gr_lengths = [r[1] for res_chunk in sim_results for r in res_chunk]
+
+            dj_mfpt = sum(dj_lengths)/count
+            gr_mfpt = sum(gr_lengths)/count
+            a_z[i][j] = np.log10(gr_mfpt / dj_mfpt)
+
+            save()
+            print(" --- Result")
+            print(" --- u:", u)
+            print(" --- p:", p)
+            print(' --- Ln (z):', a_z[i][j])
+            t.stop()
+
+            print('')
 
 
 def simulation_on_facebook_graph_zup():
@@ -649,7 +744,7 @@ def simulation_on_facebook_graph_zup():
             t.start()
 
             args = [(step, graph.copy(), p, u) for i in range(num_proc)]
-            sim_results = Parallel(n_jobs=num_proc)(delayed(sim_wrap)(arg)
+            sim_results = Parallel(n_jobs=num_proc)(delayed(Simulator.sim_wrap)(arg)
                                                     for arg in args)
 
             dj_lengths = [r[0] for res_chunk in sim_results for r in res_chunk]
@@ -669,6 +764,105 @@ def simulation_on_facebook_graph_zup():
             print('')
 
 
+def simulation_scale_free_graph_ab_zch():
+
+    dfile = {}
+
+    def write(c, d, n, graph, path):
+        fpath = path + f"c={c}_d={d}_n={n}"
+        nx.write_pajek(graph, fpath)
+        dfile[(c, d)] = fpath
+
+    def fillDict(path="../Results/scale_free_graphs_ab/"):
+        onlyfiles = [f for f in listdir(path) if isfile(join(path, f))]
+        for file in onlyfiles:
+            params = [p.split("=")[1] for p in file.split("_")]
+            rc, rd, _ = [int(p) for p in params]
+            dfile[(rc, rd)] = path + file
+
+    def existGraph(c, d):
+        t = (c, d)
+        if t in list(dfile.keys()):
+            return True
+        return False
+
+    def findScaleFreeGraphAB(c, d):
+        lk = list(dfile.keys())
+        t = (c, d)
+        if lk.count(t) == 0:
+            return None
+        return nx.read_pajek(dfile[lk[lk.index(t)]])
+
+    fillDict()
+
+    count = 1000
+    num_proc = 12
+    step = int(count/num_proc)
+
+    cd = np.arange(2, 31)
+    cc = np.arange(2, 31)
+    res_shape = (len(cd), len(cc))
+    u = 1e3
+    p = 0.1
+
+    fname = f"../Results/ScaleFreeGraphABResults/c_from_{cc[0]}_to_{cc[-1]}_d_from_{cd[0]}_to_{cd[-1]}_u={u}_p={p}.nc"
+    a_z = np.empty(shape=res_shape)
+    a_z[:] = np.nan
+
+    if os.path.isfile(fname):
+        df = xr.load_dataset(fname)
+        a_z = df.ln10_z.to_numpy()
+
+    def save():
+        coord_names = ["Degree", "Diameter"]
+        df = xr.Dataset({
+            "ln10_z": (coord_names, a_z),
+        },
+            coords={
+            coord_names[0]: cc,
+            coord_names[1]: cd,
+        })
+        df.to_netcdf(fname)
+
+    for i, c in enumerate(cc):
+        for j, d in enumerate(cd):
+
+            if ~np.isnan(a_z[i][j]):
+                print(" --- Skip")
+                print(" --- c:", c)
+                print(" --- d:", d)
+                print(' --- Ln (z):', a_z[i][j])
+                print('')
+                continue
+
+            t = Timer()
+            t.start()
+
+            graph = findScaleFreeGraphAB(c, d)
+            if graph is None:
+                continue
+
+            args = [(step, graph.copy(), p, u) for i in range(num_proc)]
+            sim_results = Parallel(n_jobs=num_proc)(delayed(Simulator.sim_wrap)(arg)
+                                                    for arg in args)
+
+            dj_lengths = [r[0] for res_chunk in sim_results for r in res_chunk]
+            gr_lengths = [r[1] for res_chunk in sim_results for r in res_chunk]
+
+            dj_mfpt = sum(dj_lengths)/count
+            gr_mfpt = sum(gr_lengths)/count
+            a_z[i][j] = np.log10(gr_mfpt / dj_mfpt)
+
+            save()
+            print(" --- Result")
+            print(" --- c:", c)
+            print(" --- d:", d)
+            print(' --- Ln (z):', a_z[i][j])
+            t.stop()
+
+            print('')
+
+
 def main():
     # simulation_on_regular_graph_zch()
     # simulation_on_regular_graph_zup()
@@ -680,17 +874,18 @@ def main():
 
     # simulation_on_small_world_graph_zup()
 
-    simulation_scale_free_graph_zup()
-    # simulation_scale_free_graph_zch()
+    # simulation_directed_scale_free_graph_zup()
+    # simulation_directed_scale_free_graph_zch()
+
+    # simulation_scale_free_graph_ab_zup()
+
+    # generateAbGraphs()
+
+    # simulation_scale_free_graph_ab_zch()
 
     # simulation_on_facebook_graph_zup()
 
-    # print("t")
-
-    # Tasks
-    # 1) structures graphs (grid 2d,3d,4d,...)
-    # 2) check for graph E.R. or
-    # 3)
+    # print("ending")
 
 
 if __name__ == '__main__':

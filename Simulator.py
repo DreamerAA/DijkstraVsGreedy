@@ -5,6 +5,10 @@ import random
 from networkx.drawing.nx_pydot import graphviz_layout
 from dataclasses import dataclass, field
 from typing import List
+import xarray as xr
+import os.path
+from Timer import Timer
+from joblib import Parallel, delayed
 
 
 @dataclass
@@ -63,28 +67,30 @@ class SimulationSettings:
     need_save_path: bool = False
 
 
-def show_graph(G, gpath: GraphPath = None):
-    pos = graphviz_layout(G, prog="dot")
-    nx.draw(G, pos)
-
-    if gpath:
-        path = gpath.path
-        path_edges = list(zip(path, path[1:]))
-        nx.draw_networkx_nodes(
-            G, pos, nodelist=[path[0]], node_color='b')
-        nx.draw_networkx_nodes(
-            G, pos, nodelist=[path[-1]], node_color='g')
-        nx.draw_networkx_nodes(
-            G, pos, nodelist=path[1:-1], node_color='r')
-        nx.draw_networkx_edges(
-            G, pos, edgelist=path_edges, edge_color='r', width=2)
-
-
 class Simulator:
     def __init__(self, igraph, ss: SimulationSettings) -> None:
         self.settings = ss
         self.igraph = igraph
         pass
+
+    def sim_wrap(wrap):
+        count, igraph, p, u = wrap
+        res = []
+        for _ in range(count):
+            source, target = Simulator.choose_source_target(igraph)
+            unc = UncertaintyCond(p, u)
+            ss = SimulationSettings(unc, need_print=False,
+                                    source=source, target=target)
+            simulator = Simulator(igraph, ss)
+            res.append(simulator.run())
+        return res
+
+    def sim(igraph: nx.Graph, unc: UncertaintyCond):
+        source, target = Simulator.choose_source_target(igraph)
+        ss = SimulationSettings(unc, need_print=False,
+                                source=source, target=target)
+        simulator = Simulator(igraph, ss)
+        return simulator.run()
 
     def createGraphWithUncertainty(igraph, unc: UncertaintyCond):
         new_graph = nx.Graph()
@@ -152,7 +158,127 @@ class Simulator:
             print("Dijkstra path length: ", dj_path.length)
             print("Gready path length: ", gr_path.length)
 
-        if self.settings.need_show:
-            show_graph(self.igraph, dj_path)
-
         return dj_path.length, gr_path.length
+
+    def simulation_up(graph, a_u, a_p, fname):
+        num_proc = 10
+        count = 1000  # [41, 44] sec
+        step = int(count/num_proc)
+
+        res_shape = (len(a_u), len(a_p))
+        a_z = np.empty(shape=res_shape)
+        a_z[:] = np.nan
+
+        if os.path.isfile(fname):
+            df = xr.load_dataset(fname)
+            a_z = df.ln10_z.to_numpy()
+
+        def save():
+            coord_names = ["log10(u)", "p"]
+            df = xr.Dataset({
+                "ln10_z": (coord_names, a_z),
+            },
+                coords={
+                coord_names[0]: np.log10(a_u),
+                coord_names[1]: a_p,
+            })
+            df.to_netcdf(fname)
+
+        for i, u in enumerate(a_u):
+            for j, p in enumerate(a_p):
+                if ~np.isnan(a_z[i][j]):
+                    print(" --- Skip")
+                    print(" --- u:", u)
+                    print(" --- p:", p)
+                    print(' --- Ln (z):', a_z[i][j])
+                    print('')
+                    continue
+
+                t = Timer()
+                t.start()
+
+                args = [(step, graph.copy(), p, u) for i in range(num_proc)]
+                sim_results = Parallel(n_jobs=num_proc)(delayed(Simulator.sim_wrap)(arg)
+                                                        for arg in args)
+
+                dj_lengths = [r[0]
+                              for res_chunk in sim_results for r in res_chunk]
+                gr_lengths = [r[1]
+                              for res_chunk in sim_results for r in res_chunk]
+
+                dj_mfpt = sum(dj_lengths)/count
+                gr_mfpt = sum(gr_lengths)/count
+                a_z[i][j] = np.log10(gr_mfpt / dj_mfpt)
+
+                save()
+                print(" --- Result")
+                print(" --- u:", u)
+                print(" --- p:", p)
+                print(' --- Ln (z):', a_z[i][j])
+                t.stop()
+
+                print('')
+
+    def simulation_ch(cd, cc, u, p, findGraph, fname):
+        count = 1000
+        num_proc = 12
+        step = int(count/num_proc)
+
+        res_shape = (len(cd), len(cc))
+        a_z = np.empty(shape=res_shape)
+        a_z[:] = np.nan
+
+        if os.path.isfile(fname):
+            df = xr.load_dataset(fname)
+            a_z = df.ln10_z.to_numpy()
+
+        def save():
+            coord_names = ["Degree", "Diameter"]
+            df = xr.Dataset({
+                "ln10_z": (coord_names, a_z),
+            },
+                coords={
+                coord_names[0]: cc,
+                coord_names[1]: cd,
+            })
+            df.to_netcdf(fname)
+
+        for i, c in enumerate(cc):
+            for j, d in enumerate(cd):
+
+                if ~np.isnan(a_z[i][j]):
+                    print(" --- Skip")
+                    print(" --- c:", c)
+                    print(" --- d:", d)
+                    print(' --- Ln (z):', a_z[i][j])
+                    print('')
+                    continue
+
+                t = Timer()
+                t.start()
+
+                graph = findGraph(c, d)
+                if graph is None:
+                    continue
+
+                args = [(step, graph.copy(), p, u) for i in range(num_proc)]
+                sim_results = Parallel(n_jobs=num_proc)(delayed(Simulator.sim_wrap)(arg)
+                                                        for arg in args)
+
+                dj_lengths = [r[0]
+                              for res_chunk in sim_results for r in res_chunk]
+                gr_lengths = [r[1]
+                              for res_chunk in sim_results for r in res_chunk]
+
+                dj_mfpt = sum(dj_lengths)/count
+                gr_mfpt = sum(gr_lengths)/count
+                a_z[i][j] = np.log10(gr_mfpt / dj_mfpt)
+
+                save()
+                print(" --- Result")
+                print(" --- c:", c)
+                print(" --- d:", d)
+                print(' --- Ln (z):', a_z[i][j])
+                t.stop()
+
+                print('')

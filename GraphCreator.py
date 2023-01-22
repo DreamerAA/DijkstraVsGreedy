@@ -125,12 +125,20 @@ class GraphCreator:
         graph.add_edges_from(list(zip(id1, id2)))
         return graph
 
-    def generateScaleFreeGraph(count_nodes, alpha, beta, gamma, delta_in=0.2, delta_out=0):
+    def generateDirectedScaleFreeGraph(count_nodes, alpha, beta, gamma, delta_in=1, delta_out=1):
         mgraph = nx.scale_free_graph(
-            count_nodes, alpha=alpha, beta=beta, gamma=gamma, delta_in=delta_in, delta_out=delta_out,)
+            count_nodes, alpha=alpha, beta=beta, gamma=gamma, delta_in=delta_in, delta_out=delta_out)
         return nx.Graph(mgraph)
 
-    def findScaleFreeGraph(c, d, path="../Results/scale_free_graphs/"):
+    def generateBarabasiAlbertGraph(count_nodes, count_edges):
+        mgraph = nx.barabasi_albert_graph(count_nodes, count_edges)
+        return nx.Graph(mgraph)
+
+    def generateErdosRenyiGraph(count_nodes, probability):
+        mgraph = nx.erdos_renyi_graph(count_nodes, probability)
+        return nx.Graph(mgraph)
+
+    def findDirectedScaleFreeGraph(c, d, path="../Results/directed_scale_free_graphs/"):
         onlyfiles = [f for f in listdir(path) if isfile(join(path, f))]
         for file in onlyfiles:
             params = [p.split("=")[1]
@@ -140,8 +148,47 @@ class GraphCreator:
                 return rc, rd, nx.read_pajek(path + file)
         return 0, 0, None
 
-    def getScaleFreeGraph(rc, rd, path="../Results/scale_free_graphs/"):
-        _, _, graph = GraphCreator.findScaleFreeGraph(rc, rd, path)
+    def findScaleFreeGraphAB(c, d, path="../Results/scale_free_graphs_ab/"):
+        onlyfiles = [f for f in listdir(path) if isfile(join(path, f))]
+        for file in onlyfiles:
+            params = [p.split("=")[1]
+                      for p in file.split("_")]
+            rc, rd, _ = [int(p) for p in params]
+            if rc == c and rd == d:
+                return rc, rd, nx.read_pajek(path + file)
+        return 0, 0, None
+
+    def getScaleFreeGraphAB(rc, rd, path="../Results/scale_free_graphs_ab/"):
+        _, _, graph = GraphCreator.findScaleFreeGraphAB(rc, rd, path)
+        if graph is None:
+            count_nodes = 150
+            cc, cd = 0, 0
+            while cc != rc or cd != rd:
+                # sum_d = []
+                print(f" --- next: n={count_nodes}")
+                for m in np.arange(1, count_nodes-1):
+                    graph = GraphCreator.generateBarabasiAlbertGraph(
+                        count_nodes, m)
+
+                    components = nx.connected_components(graph)
+                    comp = [c for c in components]
+                    if len(comp) > 1:
+                        continue
+
+                    cc = GraphCreator.extractAvareageDegree(graph)
+                    cd = nx.diameter(graph)
+                    # sum_d.append(cd)
+                    if round(cc) == rc and cd == rd:
+                        nx.write_pajek(
+                            graph, path + f"c={int(rc)}_d={rd}_n={count_nodes}")
+                        return rc, rd, graph
+
+                count_nodes -= 2
+        else:
+            return rc, rd, graph
+
+    def getDirectedScaleFreeGraph(rc, rd, path="../Results/directed_scale_free_graphs/"):
+        _, _, graph = GraphCreator.findDirectedScaleFreeGraph(rc, rd, path)
         if graph is None:
             count_nodes = 276
             cc, cd = 0, 0
@@ -152,7 +199,7 @@ class GraphCreator:
                         if beta + alpha >= 0.99:
                             continue
                         gamma = 1 - alpha - beta
-                        graph = GraphCreator.generateScaleFreeGraph(
+                        graph = GraphCreator.generateDirectedScaleFreeGraph(
                             count_nodes, alpha, beta, gamma, delta_in=1, delta_out=1)
 
                         components = nx.connected_components(graph)
@@ -188,3 +235,11 @@ class GraphCreator:
     def extractAvareageDegree(graph):
         degree = np.array([d[1] for d in graph.degree()])
         return degree.mean()
+
+    def extractIntAvareageDegree(graph):
+        return int(round(GraphCreator.extractAvareageDegree(graph)))
+
+    def connected(graph):
+        components = nx.connected_components(graph)
+        comp = [c for c in components]
+        return len(comp) == 1

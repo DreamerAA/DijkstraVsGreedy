@@ -62,18 +62,18 @@ def draw_hist(igraph, mrange=(1, 240), rwidth=1, bins=80, xticks=None):
 
 
 def draw_nxvtk(G, node_pos, size_node=0.25, size_edge=0.02):
-    """ 
-    Draw networkx graph in 3d with nodes at node_pos. 
+    """
+    Draw networkx graph in 3d with nodes at node_pos.
 
-    See layout.py for functions that compute node positions. 
+    See layout.py for functions that compute node positions.
 
-    node_pos is a dictionary keyed by vertex with a three-tuple 
-    of x-y positions as the value. 
+    node_pos is a dictionary keyed by vertex with a three-tuple
+    of x-y positions as the value.
 
-    The node color is plum. 
-    The edge color is banana. 
+    The node color is plum.
+    The edge color is banana.
 
-    All the nodes are the same size. 
+    All the nodes are the same size.
 
     """
     mrange = 1e2
@@ -204,12 +204,16 @@ def z_p():
 
 def showRegularResult(data_path, xticks=None, yticks=None, field="lnz"):
     df = xr.load_dataset(data_path)
+    res = df[field]
 
     fig = plt.figure(dpi=100)
     ax = fig.add_subplot(111)
     ax.xaxis.set_major_locator(MaxNLocator(integer=True))
 
-    r = df[field].plot(cmap='seismic')
+    r = res.plot(cmap='seismic')
+    # res = res.to_numpy()
+    # res[res < -2] = -2
+    # plt.imshow(res)
 
     lbls = list(df.dims.keys())
 
@@ -368,13 +372,35 @@ def facebook():
     add_vert(degree.mean(), 150)
     add_vert(np.median(degree), 250)
     add_vert(hist.argmax())
-
     # showGraph(igraph, 0.5, 0.0075, layout='spring', k=0.3)
 
 
-def scale_free_graph_main():
+def scale_free_er_graph_main():
+    # showRegularResult(
+    #     "../Results/ScaleFreeGraphResults/sfgr_d_from_3_to_8_c_from_3_to_8_u=1000000.0_p=0.08.nc", field="ln10_z")
+
+    # showRegularResult(
+    #     "../Results/ScaleFreeGraphResults/sfgr_u_from_100000.0_to_1e+20_p_from_0.0_to_0.1_c=3.198_D=12.nc",
+    #     field="ln10_z", xticks=[0.0, 0.02, 0.04, 0.06, 0.08, 0.1])
+
+    graph = GraphCreator.generateScaleFreeGraphER(1000, 0.49, 0.49, 0.02)
+    showGraph(graph, size_node=1.5, size_edge=0.25)
+
+
+def scale_free_ab_graph_main():
+    # fname = "u_from_1000.0_to_1000000000.0_p_from_0.0_to_0.02_c=4_D=8.nc"
+    # showRegularResult(
+    #     f"../Results/ScaleFreeGraphABResults/{fname}", field="ln10_z", xticks=[0.0, 0.005, 0.01, 0.015, 0.02])
+
+    fname = "c_from_2_to_30_d_from_2_to_30_u=1000.0_p=0.1.nc"
     showRegularResult(
-        "../Results/ScaleFreeGraphResults/sfgr_d_from_3_to_8_c_from_3_to_8_u=1000000.0_p=0.08.nc", field="ln10_z")
+        f"../Results/ScaleFreeGraphABResults/{fname}", field="ln10_z")
+    # xticks=[0.0, 0.02, 0.04, 0.06, 0.08, 0.1]
+
+    # _, _, graph = GraphCreator.getScaleFreeGraphAB(4, 8)
+    # showGraph(graph, size_node=1, size_edge=0.1)
+    # d = [d[1] for d in graph.degree()]
+    # plt.hist(d, bins=100)
 
 
 def main():
@@ -382,7 +408,8 @@ def main():
     # grid_graph_main()
     # small_world_graph_main()
     # facebook()
-    scale_free_graph_main()
+    # scale_free_er_graph_main()
+    scale_free_ab_graph_main()
 
     plt.show()
 

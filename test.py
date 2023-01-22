@@ -1,20 +1,20 @@
-from Simulator import UncertaintyCond
-import matplotlib.pyplot as plt
+from graphviz import Graph
 import numpy as np
+import matplotlib.pyplot as plt
+import networkx as nx
+from joblib import Parallel, delayed
+import xarray as xr
+from os import listdir
+from os.path import isfile, join
+from GraphCreator import GraphCreator
+from Simulator import Simulator, SimulationSettings, UncertaintyCond
+import pandas as pd
+from Timer import Timer
+import os.path
+from multiprocessing import Process, Pool
+from GraphCreator import GraphCreator
+from visualizer import Visualizer
 
-count1 = 100
-count2 = 100
-uc = UncertaintyCond(0.2, 100)
-
-res_ar = np.array([])
-res_p = np.array([])
-for i in range(count1):
-    ar, p = uc.sample(count2)
-    res_ar = np.concatenate((res_ar, ar))
-    res_p = np.concatenate((res_p, p))
-
-print(sum(res_ar > 5)*100./count1/count2)
-print(sum(res_ar < 5)*100./count1/count2)
-
-plt.hist(res_ar)
-plt.show()
+n = 6**4
+graph = GraphCreator.generateSmallWorld(n, 6, 0.1)
+Visualizer.showGraph(graph, size_node=1., size_edge=0.1, layout='spectral')
