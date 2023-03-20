@@ -39,6 +39,8 @@ from vtkmodules.vtkRenderingCore import (
 
 class Visualizer:
 
+    enumerate
+
     def critical_u(H):
         return H*np.exp(H + 1)
 
@@ -61,7 +63,7 @@ class Visualizer:
         plt.yticks(None, fontsize=18)
         return degree, hist
 
-    def draw_nxvtk(G, node_pos, size_node=0.25, size_edge=0.02):
+    def draw_nxvtk(G, node_pos, size_node=0.25, size_edge=0.02, scale="full_by_1"):
         """
         Draw networkx graph in 3d with nodes at node_pos.
 
@@ -75,6 +77,9 @@ class Visualizer:
 
         All the nodes are the same size.
 
+        @todo to enumerate
+        Scale: full_by_1, one_ax_by_1, no
+
         """
         mrange = 1e2
         positions = np.zeros(shape=(len(node_pos.keys()), 3), dtype=float)
@@ -82,12 +87,21 @@ class Visualizer:
             k = int(i)
             positions[k, :] = node_pos[i]
 
+
         a_min = positions.min(axis=0)
         a_max = positions.max(axis=0)
         diff = a_max - a_min
-        for i in range(3):
-            positions[:, i] = (positions[:, i] - a_min[i]) * \
-                2*mrange/diff[i] - mrange
+        dmax = diff.max()
+        if scale == "full_by_1" or scale == "one_ax_by_1":
+            if scale == "full_by_1":
+                for i in range(3):
+                    positions[:, i] = (positions[:, i] - a_min[i]) * \
+                    2*mrange/diff[i] - mrange
+            elif scale == "one_ax_by_1":
+                for i in range(3):
+                    positions[:, i] = (positions[:, i] - a_min[i])*2*mrange/dmax - mrange
+                
+                
 
         # set node positions
         colors = vtkNamedColors()

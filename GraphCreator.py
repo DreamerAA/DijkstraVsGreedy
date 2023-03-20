@@ -125,6 +125,24 @@ class GraphCreator:
         graph.add_edges_from(list(zip(id1, id2)))
         return graph
 
+    def getVessel(fnodes,fedges):
+        ndata = pd.read_csv(fnodes, delimiter=';')
+        edata = pd.read_csv(fedges, delimiter=';')
+        
+        id1 = edata["node1id"].to_numpy(dtype=int)
+        id2 = edata["node2id"].to_numpy(dtype=int)
+
+        xpos = ndata["pos_x"].to_numpy(dtype=float)
+        ypos = ndata["pos_y"].to_numpy(dtype=float)
+        zpos = ndata["pos_z"].to_numpy(dtype=float)
+        
+        nodes = [(i, {"x":p[0],"y":p[1],"z":p[2]}) for i, p in enumerate(zip(xpos,ypos,zpos))]
+
+        graph = nx.Graph()
+        graph.add_nodes_from(nodes)
+        graph.add_edges_from(list(zip(id1, id2)))
+        return graph
+
     def generateDirectedScaleFreeGraph(count_nodes, alpha, beta, gamma, delta_in=1, delta_out=1):
         mgraph = nx.scale_free_graph(
             count_nodes, alpha=alpha, beta=beta, gamma=gamma, delta_in=delta_in, delta_out=delta_out)
