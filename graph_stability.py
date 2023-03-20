@@ -175,7 +175,7 @@ def main(task: Task):
     return full_results
 
 
-if __name__ == '__main__':
+def constant_n_task():
     n = 6**4
 
     lgrg = []
@@ -229,12 +229,87 @@ if __name__ == '__main__':
     # info, gen = full_results[2]
     # plot(info, gen.color)
 
-    # x = np.arange(2, 50, 0.1)
-    # tmp = 0.5*(u*p+1)/(u*(p**x) + 1)
-    # y = 2*np.log10(tmp)/np.log10(x)
-    # plt.plot(x, y, color='black', linewidth=3)
-    # plt.xscale('log')
-    # plt.xticks(fontsize=24)
-    # plt.yticks(fontsize=24)
+    x = np.arange(2, 50, 0.1)
+    tmp = 0.5*(u*p+1)/(u*(p**x) + 1)
+    y = 2*np.log10(tmp)/np.log10(x)
+    plt.plot(x, y, color='black', linewidth=3)
+    plt.xscale('log')
+    plt.xticks(fontsize=24)
+    plt.yticks(fontsize=24)
 
+
+def z(u,p,c,h):
+    return 2*(c**h)*(u*(p**c) + 1)/(u*p + 1)
+
+def h(u,p,c):
+    return np.log((u*p+1)/(2*(u*p**c + 1)))/np.log(c)
+
+def h_by_n(n,c):
+    return np.log(n)/np.log(c)
+
+def c_crit(u,p,n):
+    return np.log((u*p + 1)/(2*u*n) - 1/u)/np.log(p)
+    
+
+def test_n_increasing_1():
+    top_h = 20
+    bottom_h = 1
+
+    c = np.arange(2,10,0.01)
+    u = 1e9
+    p = 0.00001
+    plt.plot(c, h(u,p,c), color='black')
+    plt.plot(c, h_by_n(100,c), linestyle='--', color='r', linewidth=2)
+    plt.plot(c, h_by_n(1000,c), linestyle='--', color='r', linewidth=2)
+    plt.plot(c, h_by_n(100000,c), linestyle='-', color='r', linewidth=2)
+    plt.fill_between(c, top_h, color='#ffffff') 
+    plt.fill_between(c, h(u,p,c), color='#25548a') 
+    plt.xlim(2,10)
+    plt.ylim(2,10)
     plt.show()
+
+
+def test_n_increasing_2():
+    top_h = 30
+    bottom_h = 1
+
+    c = np.arange(2,10,0.01)
+    u = 30000
+    p = 0.15
+    n1 = 150
+    n2 = 1e3
+    
+    print('z1 =',z(u,p,10,4))
+    print('z2 =',z(u,p,10,3))
+
+    c1_crit = c_crit(u,p,n1)
+    c2_crit = c_crit(u,p,n2)
+
+    i_c1 = np.argmin(np.abs(c - c1_crit))
+    i_c2 = np.argmin(np.abs(c - c2_crit))
+    
+    print(c1_crit, c2_crit)
+    print(i_c1, i_c2)
+
+    def plot_wrap(x, n, s):
+        plt.plot(x, h_by_n(n,x), linestyle=s, color='r', linewidth=2)
+
+    plt.plot(c, h(u,p,c), color='black')
+    plot_wrap(c[:i_c1], n1, '-')
+    plot_wrap(c[i_c1:], n1, '--')
+
+    plot_wrap(c[:i_c2], n2, '-')
+    plot_wrap(c[i_c2:], n2, '--')
+
+    plt.plot(c, h_by_n(5e3,c), linestyle='-', color='r', linewidth=2)
+    plt.fill_between(c, top_h, color='#ffffff') 
+    plt.fill_between(c, h(u,p,c), color='#25548a') 
+    plt.xlim(2,10)
+    plt.ylim(2,5)
+    plt.show()
+
+if __name__ == '__main__':
+
+    # constant_n_task()
+    test_n_increasing_1()
+    test_n_increasing_2()
