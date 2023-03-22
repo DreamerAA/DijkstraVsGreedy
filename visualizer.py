@@ -236,7 +236,7 @@ class Visualizer:
         ax = fig.add_subplot(111)
         ax.xaxis.set_major_locator(MaxNLocator(integer=True))
 
-        r = res.plot(cmap='seismic')
+        r = res.plot(cmap='seismic',vmin=-1,vmax=1)
 
         lbls = list(df.dims.keys())
 

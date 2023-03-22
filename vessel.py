@@ -17,59 +17,51 @@ from visualizer import Visualizer
 
 
 
-def simulation_zup():
-    rc, rd = 6, 6
-    graph = findGraph(rc, rd)
+def simulation_zup(graph):
 
     # a_u = np.array([1e5, 1e4], dtype=np.float64)
     # a_p = np.array([0.2, 0.3], dtype=np.float64)
-    a_u = np.array([1e1, 5e1, 1e2, 5e2, 1e3, 5e3, 1e4, 5e4, 1e5, 5e5, 1e6,
-                   5e6, 1e7, 5e7, 1e8, 5e8, 1e9], dtype=np.float64)
-    # a_u = np.array([1e2, 1e3, 1e4, 1e5, 1e6,
-    #                 1e7, 1e8, 1e9], dtype=np.float64)
-    a_p = np.arange(0, 0.41, 0.01, dtype=np.float64)
+    # a_u = np.array([1e1, 5e1, 1e2, 5e2, 1e3, 5e3, 1e4, 5e4, 1e5, 5e5, 1e6,
+    #                5e6, 1e7, 5e7, 1e8, 5e8, 1e9], dtype=np.float64)
+    degree = [1+i for i in range(24)]
+    a_u = np.array([10**d for d in degree], dtype=np.float64)
+    a_p = np.arange(0.0, 0.051, 0.002, dtype=np.float64)
 
-    fname = f"../Results/BarabasiAlbertResults/u_from_{a_u[0]}_to_{a_u[-1]}_p_from_{a_p[0]}_to_{a_p[-1]}_c={rc}_D={rd}.nc"
+    fname = f"/media/andrey/Samsung_T5/PHD/results/vessel/u_from_{a_u[0]}_to_{a_u[-1]}_p_from_{a_p[0]}_to_{a_p[-1]}.nc"
 
-    print("C, D:", GraphCreator.extractAvareageDegree(graph), rd)
-    Simulator.simulation_up(graph, a_u, a_p, fname)
+    Simulator.simulation_up(graph, a_u, a_p, fname, 500)
+    return fname 
 
 
 def main():
-    # fnodes = '../data/VesselGraph/1_b_3_0_nodes_processed.csv'
-    # fedges = '../data/VesselGraph/1_b_3_0_edges_processed.csv'
-    fnodes = '../data/VesselGraph/C57BL_6-K20_b_3_0_nodes_processed.csv'
-    fedges = '../data/VesselGraph/C57BL_6-K20_b_3_0_edges_processed.csv'
+    fnodes = '../data/VesselGraph/1_b_3_0_nodes_processed.csv'
+    fedges = '../data/VesselGraph/1_b_3_0_edges_processed.csv'
+    # fnodes = '../data/VesselGraph/C57BL_6-K20_b_3_0_nodes_processed.csv'
+    # fedges = '../data/VesselGraph/C57BL_6-K20_b_3_0_edges_processed.csv'
 
     graph = GraphCreator.getVessel(fnodes,fedges)
     
-    node_pos = {}
-    for n in graph.nodes(data=True):
-        p = n[1]
-        node_pos[n[0]] = (p['x'],p['y'],p['z'])
+    # node_pos = {}
+    # for n in graph.nodes(data=True):
+    #     p = n[1]
+    #     node_pos[n[0]] = (p['x'],p['y'],p['z'])
 
-    Visualizer.draw_nxvtk(graph,node_pos,size_node=1,size_edge=0.3,scale="one_ax_by_1")
+    # Visualizer.draw_nxvtk(graph,node_pos,size_node=1,size_edge=0.3,scale="one_ax_by_1")
     # Visualizer.draw_hist(graph, mrange=(1, 5))
 
-    # generate_graphs()
+    # cc = GraphCreator.extractAvareageDegree(graph)
+    # cd = nx.diameter(graph)
+    # print("avarage diameter:", cd)
+    # print("avarage degree:", cc)
 
-    # checkExistedGraphs(10, 10)
+    fname = simulation_zup(graph)
 
-    # simulation_zup()
-    # fname = "vessel_graph_1_b_3_0.nc"
-    # Visualizer.showRegularResult(
-        # f"../Results/BarabasiAlbertResults/{fname}", field="ln10_z", xticks=[0, 0.1, 0.2, 0.3, 0.4])
-    # Visualizer.add_critical_u(3, 0.4)
+    # data_name = "u_from_100.0_to_1000000000.0_p_from_0.0_to_0.4.nc"
+    # fname = f"/media/andrey/Samsung_T5/PHD/results/vessel/{data_name}"
 
-    # simulation_zch()
-    # fname = "c_from_2_to_8_d_from_2_to_8_u=10000.0_p=0.01.nc"
-    # Visualizer.showRegularResult(
-    #     f"../Results/BarabasiAlbertResults/{fname}", field="ln10_z")
+    Visualizer.showRegularResult(fname, field="ln10_z", xticks=[0, 0.01, 0.02, 0.03, 0.04, 0.05])
+    Visualizer.add_critical_u(34, 0.05)
 
-    # graph = findGraph(7, 7)
-    # graph = GraphCreator.generateErdosRenyiGraph(1000, 1.)
-    # Visualizer.draw_hist(graph, mrange=(1, 1000))
-    # Visualizer.showGraph(graph, size_node=1, size_edge=0.1, layout="spring")
     plt.show()
 
 
