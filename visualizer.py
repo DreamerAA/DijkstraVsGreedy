@@ -83,9 +83,15 @@ class Visualizer:
         """
         mrange = 1e2
         positions = np.zeros(shape=(len(node_pos.keys()), 3), dtype=float)
-        for i in node_pos.keys():
-            k = int(i)
-            positions[k, :] = node_pos[i]
+        corr = np.zeros(shape=(np.max(list(node_pos.keys())) + 1,), dtype=int)
+        i = 0
+
+        for k in node_pos.keys():
+            positions[i, :] = node_pos[k]
+            corr[int(k)] = i
+            i = i + 1
+
+
 
 
         a_min = positions.min(axis=0)
@@ -149,7 +155,8 @@ class Visualizer:
             # The edge e can be a 2-tuple (Graph) or a 3-tuple (Xgraph)
             lines.InsertNextCell(2)
             for n in (u, v):
-                (x, y, z) = positions[int(n), :]
+                ni = corr[n]
+                (x, y, z) = positions[ni, :]
                 points.InsertPoint(i, x, y, z)
                 lines.InsertCellPoint(i)
                 i = i+1
@@ -214,7 +221,7 @@ class Visualizer:
     def showGraph(G, size_node=0.25, size_edge=0.02, layout='kamada', **kwargs):
         graph = nx.Graph(G)
 
-        print(f"sqrt={np.sqrt(len(graph.nodes()))}")
+        # print(f"sqrt={np.sqrt(len(graph.nodes()))}")
         edges = [(i, j, 1) for i, j in graph.edges()]
         graph.add_weighted_edges_from(edges)
         if layout == 'kamada':
@@ -228,15 +235,18 @@ class Visualizer:
 
     # 'viridis', 'RdBu', 'Spectral', 'bwr', 'seismic'
 
-    def showRegularResult(data_path, xticks=None, yticks=None, field="lnz"):
+    def showRegularResult(data_path, xticks=None, yticks=None, field="lnz", log_callback=None):
         df = xr.load_dataset(data_path)
         res = df[field]
+
+        if log_callback != None:
+            log_callback(res)
 
         fig = plt.figure(dpi=100)
         ax = fig.add_subplot(111)
         ax.xaxis.set_major_locator(MaxNLocator(integer=True))
 
-        r = res.plot(cmap='seismic',vmin=-1,vmax=1)
+        r = res.plot(cmap='seismic')
 
         lbls = list(df.dims.keys())
 

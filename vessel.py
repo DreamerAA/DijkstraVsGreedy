@@ -21,15 +21,15 @@ def simulation_zup(graph):
 
     # a_u = np.array([1e5, 1e4], dtype=np.float64)
     # a_p = np.array([0.2, 0.3], dtype=np.float64)
-    # a_u = np.array([1e1, 5e1, 1e2, 5e2, 1e3, 5e3, 1e4, 5e4, 1e5, 5e5, 1e6,
-    #                5e6, 1e7, 5e7, 1e8, 5e8, 1e9], dtype=np.float64)
-    degree = [1+i for i in range(24)]
-    a_u = np.array([10**d for d in degree], dtype=np.float64)
+    a_u = np.array([1e2, 5e2, 1e3, 5e3, 1e4, 5e4, 1e5, 5e5, 1e6,
+                   5e6, 1e7, 5e7, 1e8, 5e8, 1e9], dtype=np.float64)
+    # degree = [1+i for i in range(24)]
+    # a_u = np.array([10**d for d in degree], dtype=np.float64)
     a_p = np.arange(0.0, 0.051, 0.002, dtype=np.float64)
 
     fname = f"/media/andrey/Samsung_T5/PHD/results/vessel/u_from_{a_u[0]}_to_{a_u[-1]}_p_from_{a_p[0]}_to_{a_p[-1]}.nc"
 
-    Simulator.simulation_up(graph, a_u, a_p, fname, 500)
+    # Simulator.simulation_up(graph, a_u, a_p, fname, 100)
     return fname 
 
 
@@ -40,26 +40,30 @@ def main():
     # fedges = '../data/VesselGraph/C57BL_6-K20_b_3_0_edges_processed.csv'
 
     graph = GraphCreator.getVessel(fnodes,fedges)
-    
+    # GraphCreator.removeOneDegreeNodes(graph)
+
+
     # node_pos = {}
     # for n in graph.nodes(data=True):
     #     p = n[1]
     #     node_pos[n[0]] = (p['x'],p['y'],p['z'])
 
     # Visualizer.draw_nxvtk(graph,node_pos,size_node=1,size_edge=0.3,scale="one_ax_by_1")
+    # Visualizer.showGraph(graph, size_node=1,size_edge=0.3,layout='spring')
+
     # Visualizer.draw_hist(graph, mrange=(1, 5))
 
     # cc = GraphCreator.extractAvareageDegree(graph)
     # cd = nx.diameter(graph)
-    # print("avarage diameter:", cd)
+    # print("diameter:", cd)
     # print("avarage degree:", cc)
 
     fname = simulation_zup(graph)
 
-    # data_name = "u_from_100.0_to_1000000000.0_p_from_0.0_to_0.4.nc"
+    # data_name = "u_from_10.0_to_1e+24_p_from_0.0_to_0.05.nc"
     # fname = f"/media/andrey/Samsung_T5/PHD/results/vessel/{data_name}"
 
-    Visualizer.showRegularResult(fname, field="ln10_z", xticks=[0, 0.01, 0.02, 0.03, 0.04, 0.05])
+    Visualizer.showRegularResult(fname, field="ln10_z")
     Visualizer.add_critical_u(34, 0.05)
 
     plt.show()

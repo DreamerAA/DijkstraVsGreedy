@@ -117,6 +117,22 @@ class GraphCreator:
                 graph, path + f"c={rc}_d={rd}_n={count_nodes}_cn={count_neighbours}_p={p}")
         return rc, rd, graph
 
+    def removeOneDegreeNodes(graph):
+        degrees = np.array([d for _, d in graph.degree()])
+        while np.count_nonzero(degrees == 1) != 0:
+            nodes = []
+            edges = []
+            for n, d in graph.degree():
+                if d == 1:
+                    nn = [cn for cn in graph.neighbors(n)]
+                    nodes.append(n)
+                    edges.append((n,nn[0]))
+
+            graph.remove_edges_from(edges)
+            graph.remove_nodes_from(nodes)
+            degrees = np.array([d for _, d in graph.degree()])
+            
+
     def getFacebook(path):
         data = pd.read_csv(path, delimiter=' ')
         id1 = data["i1"].to_numpy()
