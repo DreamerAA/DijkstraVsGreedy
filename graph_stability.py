@@ -258,12 +258,12 @@ def test_n_increasing_1():
     c = np.arange(2,10,0.01)
     u = 1e9
     p = 0.00001
-    plt.plot(c, h(u,p,c), color='black')
-    plt.plot(c, h_by_n(100,c), linestyle='--', color='r', linewidth=2)
-    plt.plot(c, h_by_n(1000,c), linestyle='--', color='r', linewidth=2)
-    plt.plot(c, h_by_n(100000,c), linestyle='-', color='r', linewidth=2)
-    plt.fill_between(c, top_h, color='#ffffff') 
-    plt.fill_between(c, h(u,p,c), color='#25548a') 
+    plt.plot(c, h(u,p,c), color='black',linewidth=3)
+    plt.plot(c, h_by_n(100,c), linestyle='--', color='r', linewidth=4)
+    plt.plot(c, h_by_n(1000,c), linestyle='--', color='r', linewidth=4)
+    plt.plot(c, h_by_n(100000,c), linestyle='-', color='r', linewidth=4)
+    # plt.fill_between(c, top_h, color='#ffffff') 
+    # plt.fill_between(c, h(u,p,c), color='#25548a') 
     plt.xlim(2,10)
     plt.ylim(2,10)
     plt.show()
@@ -292,24 +292,51 @@ def test_n_increasing_2():
     print(i_c1, i_c2)
 
     def plot_wrap(x, n, s):
-        plt.plot(x, h_by_n(n,x), linestyle=s, color='r', linewidth=2)
+        plt.plot(x, h_by_n(n,x), linestyle=s, color='r', linewidth=4)
 
-    plt.plot(c, h(u,p,c), color='black')
+    plt.plot(c, h(u,p,c), color='black',linewidth=3)
     plot_wrap(c[:i_c1], n1, '-')
     plot_wrap(c[i_c1:], n1, '--')
 
     plot_wrap(c[:i_c2], n2, '-')
     plot_wrap(c[i_c2:], n2, '--')
 
-    plt.plot(c, h_by_n(5e3,c), linestyle='-', color='r', linewidth=2)
-    plt.fill_between(c, top_h, color='#ffffff') 
-    plt.fill_between(c, h(u,p,c), color='#25548a') 
+    plt.plot(c, h_by_n(5e3,c), linestyle='-', color='r', linewidth=4)
+    # plt.fill_between(c, top_h, color='#ffffff') 
+    # plt.fill_between(c, h(u,p,c), color='#25548a') 
     plt.xlim(2,10)
     plt.ylim(2,5)
+    plt.show()
+
+def test_scale_increasing_part1():
+    cmax = 25
+    c = np.arange(2,cmax,0.01)
+    u = 30000
+    p = 0.15
+
+    plt.plot(c, h(u,p,c), color='r',linewidth=3)
+    plt.xlim(2,cmax)
+    plt.ylim(2,5)
+    plt.show()
+
+def test_scale_increasing_part2():
+    xmax = 10
+    a = 4
+    x = np.arange(0.5,xmax - 0.5,0.01)
+    y = (x/a)**2 + 5
+    plt.plot(x, [7]*x.shape[0], color='r',linewidth=3)
+    plt.plot(x, y, color='black',linewidth=3)
+    plt.xlim(0,xmax)
+    plt.ylim(0,15)
+
     plt.show()
 
 if __name__ == '__main__':
 
     # constant_n_task()
-    test_n_increasing_1()
-    test_n_increasing_2()
+    # test_n_increasing_1()
+    # test_n_increasing_2()
+    test_scale_increasing_part1()
+    # test_scale_increasing_part2()
+
+
