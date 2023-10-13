@@ -160,10 +160,9 @@ class Simulator:
 
         return dj_path.length, gr_path.length
 
-    def simulation_up(graph, a_u, a_p, fname):
+    def simulation_up(graph, a_u, a_p, fname, run_count=100):
         num_proc = 10
-        count = 1000  # [41, 44] sec
-        step = int(count/num_proc)
+        step = int(run_count/num_proc)
 
         res_shape = (len(a_u), len(a_p))
         a_z = np.empty(shape=res_shape)
@@ -206,8 +205,8 @@ class Simulator:
                 gr_lengths = [r[1]
                               for res_chunk in sim_results for r in res_chunk]
 
-                dj_mfpt = sum(dj_lengths)/count
-                gr_mfpt = sum(gr_lengths)/count
+                dj_mfpt = sum(dj_lengths)/run_count
+                gr_mfpt = sum(gr_lengths)/run_count
                 a_z[i][j] = np.log10(gr_mfpt / dj_mfpt)
 
                 save()

@@ -32,7 +32,7 @@ def sim(igraph, p, u: np.float64):
 # real_diameter=8
 # av_connect=117.63000341148297
 data = pd.read_csv(
-    "../../dataset/ego_facebook/ego_facebook.csv", delimiter=' ')
+    "../data/Facebook/facebook_combined.csv", delimiter=' ')
 id1 = data["0"].to_numpy()
 id2 = data["1"].to_numpy()
 

@@ -117,50 +117,90 @@ class GraphCreator:
                 graph, path + f"c={rc}_d={rd}_n={count_nodes}_cn={count_neighbours}_p={p}")
         return rc, rd, graph
 
+    def removeOneDegreeNodes(graph):
+        degrees = np.array([d for _, d in graph.degree()])
+        while np.count_nonzero(degrees == 1) != 0:
+            nodes = []
+            edges = []
+            for n, d in graph.degree():
+                if d == 1:
+                    nn = [cn for cn in graph.neighbors(n)]
+                    nodes.append(n)
+                    edges.append((n,nn[0]))
+
+            graph.remove_edges_from(edges)
+            graph.remove_nodes_from(nodes)
+            degrees = np.array([d for _, d in graph.degree()])
+            
+
     def getFacebook(path):
-        data = pd.read_csv(path, delimiter=' ')
+        data = pd.read_csv(path, delimiter=',')
         id1 = data["i1"].to_numpy()
         id2 = data["i2"].to_numpy()
         graph = nx.Graph()
         graph.add_edges_from(list(zip(id1, id2)))
         return graph
 
-    def getVessel(fnodes,fedges):
+    def getVessel(fnodes,fedges,borders=np.array([[-np.inf,np.inf],[-np.inf,np.inf],[-np.inf,np.inf]])):
         ndata = pd.read_csv(fnodes, delimiter=';')
         edata = pd.read_csv(fedges, delimiter=';')
         
         id1 = edata["node1id"].to_numpy(dtype=np.int32)
         id2 = edata["node2id"].to_numpy(dtype=np.int32)
 
-        xpos = ndata["pos_x"].to_numpy(dtype=np.float32)
-        ypos = ndata["pos_y"].to_numpy(dtype=np.float32)
-        zpos = ndata["pos_z"].to_numpy(dtype=np.float32)
-        
-        pos = np.zeros(shape=(len(xpos),3), dtype=np.float32)
+        xpos = ndata["pos_x"].to_numpy(dtype=float)
+        ypos = ndata["pos_y"].to_numpy(dtype=float)
+        zpos = ndata["pos_z"].to_numpy(dtype=float)
+
+        pos = np.zeros(shape=(xpos.shape[0],3))
         pos[:,0] = xpos
         pos[:,1] = ypos
         pos[:,2] = zpos
         
-        indexes = zpos < 10000
-        id1_use = indexes[id1]
-        id2_use = indexes[id2]
-        edge_use = np.logical_and(id1_use, id2_use)
-        
-        id1 = id1[edge_use]
-        id2 = id2[edge_use]
-        
-        cs = np.cumsum(indexes) - 1
-        pos = pos[indexes, :]
-        
-        id1 = cs[id1]
-        id2 = cs[id2]
-        
-        # nodes = [(i, {"x":p[0],"y":p[1],"z":p[2]}) for i, p in enumerate(zip(xpos,ypos,zpos))]
+        id1,id2, pos = GraphCreator.cutGraph(id1,id2,pos, borders)
+
+        # nodes = [(i, {"x":pos[i,0],"y":pos[i,1],"z":pos[i,2]}) for i in range(pos.shape[0])]
 
         graph = nx.Graph()
-        # graph.add_nodes_from(nodes)
         graph.add_edges_from(list(zip(id1, id2)))
+
+        components = nx.connected_components(graph)
+        lc = np.array([len(c) for c in components])
+        max_comp = list(nx.node_connected_component(graph,lc.argmax()))
+
+        nmask = np.zeros(shape=(pos.shape[0],),dtype=bool)
+        nmask[max_comp] = True
+        id1,id2, pos = GraphCreator.rmNodes(nmask, id1,id2, pos)
+
+        graph = nx.Graph()
+        graph.add_edges_from(list(zip(id1, id2)))
+
         return graph, pos
+
+    def rmNodes(mask, i1, i2, opos):
+        good_edges = np.logical_and(mask[i1], mask[i2])
+        nip = np.cumsum(mask) - 1
+        nl1 = nip[i1[good_edges]]
+        nl2 = nip[i2[good_edges]]
+        npos = opos[mask,:]
+        return nl1, nl2, npos   
+
+    def cutGraph(l1,l2,pos,borders):
+        xi = np.logical_and(pos[:,0] > borders[0,0], pos[:,0] < borders[0,1])
+        yi = np.logical_and(pos[:,1] > borders[1,0], pos[:,1] < borders[1,1])
+        zi = np.logical_and(pos[:,2] > borders[2,0], pos[:,2] < borders[2,1])
+        ipos = np.logical_and(np.logical_and(xi, yi), zi)
+
+        nl1, nl2, npos = GraphCreator.rmNodes(ipos, l1, l2, pos)
+
+        nmask = np.zeros(shape=(npos.shape[0],),dtype=bool)
+        nmask[nl1] = True
+        nmask[nl2] = True
+
+        nl1, nl2, npos = GraphCreator.rmNodes(nmask, nl1, nl2, npos)
+
+        return nl1, nl2, npos
+
 
     def generateDirectedScaleFreeGraph(count_nodes, alpha, beta, gamma, delta_in=1, delta_out=1):
         mgraph = nx.scale_free_graph(
