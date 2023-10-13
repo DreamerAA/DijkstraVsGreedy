@@ -82,11 +82,14 @@ class Visualizer:
 
         """
         mrange = 1e2
-        positions = np.zeros(shape=(len(node_pos.keys()), 3), dtype=float)
-        for i in node_pos.keys():
-            k = int(i)
-            positions[k, :] = node_pos[i]
-
+        positions = None
+        if type(node_pos) == type(np.ones(0)):
+            positions = node_pos
+        else:
+            positions = np.zeros(shape=(len(node_pos.keys()), 3), dtype=np.float32)
+            for i in node_pos.keys():
+                k = int(i)
+                positions[k, :] = node_pos[i]            
 
         a_min = positions.min(axis=0)
         a_max = positions.max(axis=0)
@@ -100,7 +103,7 @@ class Visualizer:
             elif scale == "one_ax_by_1":
                 for i in range(3):
                     positions[:, i] = (positions[:, i] - a_min[i])*2*mrange/dmax - mrange
-                
+        print(diff, a_min, a_max)
                 
 
         # set node positions
@@ -135,43 +138,46 @@ class Visualizer:
         glyph.GetProperty().SetDiffuseColor(1., 0., 0.)
         glyph.GetProperty().SetSpecular(.3)
         glyph.GetProperty().SetSpecularPower(30)
+        
+        profile = None
+        if size_edge != 0:
+            # Generate the polyline for the spline.
+            points = vtkPoints()
+            edgeData = vtkPolyData()
 
-        # Generate the polyline for the spline.
-        points = vtkPoints()
-        edgeData = vtkPolyData()
+            # Edges
 
-        # Edges
+            lines = vtkCellArray()
+            lines.Use32BitStorage()
+            i = 0
+            count_edges = len(G.edges())
+            for u, v in G.edges():
+                # The edge e can be a 2-tuple (Graph) or a 3-tuple (Xgraph)
+                lines.InsertNextCell(2)
+                for n in (u, v):
+                    (x, y, z) = positions[int(n), :]
+                    points.InsertPoint(i, x, y, z)
+                    lines.InsertCellPoint(i)
+                    i = i+1
 
-        lines = vtkCellArray()
-        i = 0
-        count_edges = len(G.edges())
-        for u, v in G.edges():
-            # The edge e can be a 2-tuple (Graph) or a 3-tuple (Xgraph)
-            lines.InsertNextCell(2)
-            for n in (u, v):
-                (x, y, z) = positions[int(n), :]
-                points.InsertPoint(i, x, y, z)
-                lines.InsertCellPoint(i)
-                i = i+1
+            edgeData.SetPoints(points)
+            edgeData.SetLines(lines)
 
-        edgeData.SetPoints(points)
-        edgeData.SetLines(lines)
+            # Add thickness to the resulting line.
+            Tubes = vtkTubeFilter()
+            Tubes.SetNumberOfSides(3)
+            Tubes.SetInputData(edgeData)
+            Tubes.SetRadius(size_edge)
+            #
+            profileMapper = vtkPolyDataMapper()
+            profileMapper.SetInputConnection(Tubes.GetOutputPort())
 
-        # Add thickness to the resulting line.
-        Tubes = vtkTubeFilter()
-        Tubes.SetNumberOfSides(16)
-        Tubes.SetInputData(edgeData)
-        Tubes.SetRadius(size_edge)
-        #
-        profileMapper = vtkPolyDataMapper()
-        profileMapper.SetInputConnection(Tubes.GetOutputPort())
-
-        #
-        profile = vtkActor()
-        profile.SetMapper(profileMapper)
-        profile.GetProperty().SetDiffuseColor(0., 0., 1.)
-        profile.GetProperty().SetSpecular(.3)
-        profile.GetProperty().SetSpecularPower(30)
+            #
+            profile = vtkActor()
+            profile.SetMapper(profileMapper)
+            profile.GetProperty().SetDiffuseColor(0., 0., 1.)
+            profile.GetProperty().SetSpecular(.3)
+            profile.GetProperty().SetSpecularPower(30)
 
         # Now create the RenderWindow, Renderer and Interactor
         ren = vtkRenderer()
@@ -184,7 +190,7 @@ class Visualizer:
         iren = vtkRenderWindowInteractor()
         iren.SetRenderWindow(renWin)
         iren.SetInteractorStyle(style)
-
+        
         # Add the actors
         ren.AddActor(glyph)
         ren.AddActor(profile)
@@ -211,7 +217,7 @@ class Visualizer:
 
         plt.plot()
 
-    def showGraph(G, size_node=0.25, size_edge=0.02, layout='kamada', **kwargs):
+    def showGraph(G, size_node=0.25, size_edge=0.005, layout='kamada', **kwargs):
         graph = nx.Graph(G)
 
         print(f"sqrt={np.sqrt(len(graph.nodes()))}")

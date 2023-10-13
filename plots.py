@@ -372,7 +372,7 @@ def facebook():
     add_vert(degree.mean(), 150)
     add_vert(np.median(degree), 250)
     add_vert(hist.argmax())
-    # showGraph(igraph, 0.5, 0.0075, layout='spring', k=0.3)
+    showGraph(igraph, 0.5, 0.0075, layout='spring', k=0.3)
 
 
 def scale_free_er_graph_main():
@@ -407,9 +407,9 @@ def main():
     # regular_graph_main()
     # grid_graph_main()
     # small_world_graph_main()
-    # facebook()
+    facebook()
     # scale_free_er_graph_main()
-    scale_free_ab_graph_main()
+    # scale_free_ab_graph_main()
 
     plt.show()
 

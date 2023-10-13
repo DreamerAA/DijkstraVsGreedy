@@ -36,19 +36,15 @@ def simulation_zup():
 
 
 def main():
-    # fnodes = '../data/VesselGraph/1_b_3_0_nodes_processed.csv'
-    # fedges = '../data/VesselGraph/1_b_3_0_edges_processed.csv'
-    fnodes = '../data/VesselGraph/C57BL_6-K20_b_3_0_nodes_processed.csv'
-    fedges = '../data/VesselGraph/C57BL_6-K20_b_3_0_edges_processed.csv'
+    fnodes = '../data/VesselGraph/1_b_3_0_nodes_processed.csv'
+    fedges = '../data/VesselGraph/1_b_3_0_edges_processed.csv'
+    # fnodes = '../data/VesselGraph/C57BL_6-K19_b_3_0_nodes_processed.csv'
+    # fedges = '../data/VesselGraph/C57BL_6-K19_b_3_0_edges_processed.csv'
 
-    graph = GraphCreator.getVessel(fnodes,fedges)
-    
-    node_pos = {}
-    for n in graph.nodes(data=True):
-        p = n[1]
-        node_pos[n[0]] = (p['x'],p['y'],p['z'])
-
-    Visualizer.draw_nxvtk(graph,node_pos,size_node=1,size_edge=0.3,scale="one_ax_by_1")
+    graph, pos = GraphCreator.getVessel(fnodes,fedges)
+    print(pos.shape)
+    Visualizer.draw_nxvtk(graph,pos,size_node=1,size_edge=0.3,scale="one_ax_by_1")
+    # Visualizer.draw_nxvtk(graph,pos,size_node=0.2,size_edge=0.001,scale="one_ax_by_1")
     # Visualizer.draw_hist(graph, mrange=(1, 5))
 
     # generate_graphs()
