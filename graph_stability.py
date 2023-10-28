@@ -315,6 +315,7 @@ def test_scale_increasing_part1():
     p = 0.15
 
     plt.plot(c, h(u,p,c), color='r',linewidth=3)
+    plt.fill_between(c, h(u,p,c), color='#5081baaa') 
     plt.xlim(2,cmax)
     plt.ylim(2,5)
     plt.show()
@@ -334,9 +335,9 @@ def test_scale_increasing_part2():
 if __name__ == '__main__':
 
     # constant_n_task()
-    # test_n_increasing_1()
-    # test_n_increasing_2()
-    test_scale_increasing_part1()
+    test_n_increasing_1()
+    test_n_increasing_2()
+    # test_scale_increasing_part1()
     # test_scale_increasing_part2()
 
 

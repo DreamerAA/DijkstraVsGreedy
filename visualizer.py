@@ -4,12 +4,7 @@ import numpy as np
 import xarray as xr
 import networkx as nx
 from matplotlib.ticker import MaxNLocator
-from GraphCreator import GraphCreator
-from vedo import *
 import math as m
-# noinspection PyUnresolvedReferences
-import vtkmodules.vtkInteractionStyle
-# noinspection PyUnresolvedReferences
 import vtkmodules.vtkRenderingOpenGL2
 from vtkmodules.vtkCommonColor import vtkNamedColors
 from vtkmodules.vtkCommonCore import vtkDoubleArray
@@ -107,7 +102,7 @@ class Visualizer:
             hist[d] += 1
 
         plt.hist(degree, bins=bins, histtype='bar',
-                 range=mrange, rwidth=rwidth)
+                 range=mrange, rwidth=rwidth, color='#50ba81')##5081ba
         plt.xticks(xticks, fontsize=18)
         plt.yticks(None, fontsize=18)
         return degree, hist
@@ -138,8 +133,9 @@ class Visualizer:
         positions = None
         corr = None
         if type(dict()) == type(node_pos_corr):
-            positions = np.zeros(shape=(len(node_pos_corr.keys()), 3), dtype=float)
-            corr = np.zeros(shape=(np.max(list(node_pos_corr.keys())) + 1,), dtype=int)
+            nums = np.array(list(node_pos_corr.keys()),dtype=int)
+            positions = np.zeros(shape=(nums.shape[0], 3), dtype=float)
+            corr = np.zeros(shape=(nums.max() + 1,), dtype=int)
             i = 0
             for k in node_pos_corr.keys():
                 positions[i, :] = node_pos_corr[k]
@@ -149,7 +145,13 @@ class Visualizer:
             positions = node_pos_corr[0]
             corr = node_pos_corr[1]
 
-        Visualizer.draw_graph(ren, (G, positions, corr),size_node,size_edge,save_pos_path,scale,**kwargs)
+        
+        if G.nodes[0]['type_id'] is not None and "colors_data" in kwargs:
+            data_for_vis = (G, positions, corr, kwargs["colors_data"])
+        else:
+            data_for_vis = (G, positions, corr)
+
+        Visualizer.draw_graph(ren,data_for_vis,size_node,size_edge,save_pos_path,scale,**kwargs)
 
         renWin = vtkRenderWindow()
         renWin.AddRenderer(ren)
@@ -166,17 +168,16 @@ class Visualizer:
 
         camera = ren.GetActiveCamera()
         camera.SetFocalPoint(0, 0, 0)
-        camera.SetPosition(300, 300, 300)
+        camera.SetPosition(200, 200, 200)
         # renWin.SetSize(640, 640)
 
         renWin.Render()
-        # ren.GetActiveCamera().Zoom(20)
         renWin.Render()
         iren.Initialize()
 
         if 'animation' in kwargs:
             # Sign up to receive TimerEvent
-            cb = vtkTimerCallback(5000, [], camera, iren)
+            cb = vtkTimerCallback(5000, [], [camera], iren)
             iren.AddObserver('TimerEvent', cb.execute)
             cb.timerId = iren.CreateRepeatingTimer(500)
 
@@ -185,7 +186,7 @@ class Visualizer:
         renWin.SetSize(1900,1080)
         iren.Start()
 
-    def split_view(data1, data2, size_node=0.25, size_edge=0.02, save_pos_path='', scale="full_by_1", **kwargs):
+    def split_view(data1, data2, size_node=0.25, size_edge=0.03, save_pos_path='', scale="full_by_1", **kwargs):
         xmins = [0, .5]
         xmaxs = [0.5, 1]
         ymins = [0]*2
@@ -200,7 +201,7 @@ class Visualizer:
 
             camera = ren.GetActiveCamera()
             camera.SetFocalPoint(0, 0, 0)
-            camera.SetPosition(200, 200, 200)
+            camera.SetPosition(140, 140, 140)
             cameras.append(camera)
 
             rw.AddRenderer(ren)
@@ -226,6 +227,9 @@ class Visualizer:
         tdcolors = None
         if len(graph_pos_corr) == 3:
             graph, positions, corr = graph_pos_corr
+        elif len(graph_pos_corr) == 4:
+            graph, positions, corr, color_data = graph_pos_corr
+            ndcolors = [n[1]["type_id"] for n in graph.nodes(data=True)]
         else:
             graph, positions, corr, ndcolors, tdcolors = graph_pos_corr
 
@@ -256,31 +260,27 @@ class Visualizer:
         # set node positions
         colors = vtkNamedColors()
         nodePoints = vtkPoints()
-
-        # color_transfer = vtkColorTransferFunction()
-        # color_transfer.AddRGBPoint(0, 0, 0, 1.)     
-        # color_transfer.AddRGBPoint(0.25, 0, 1., 1)
-        # color_transfer.AddRGBPoint(0.5, 0, 1, 0)   
-        # color_transfer.AddRGBPoint(0.75, 1, 1, 0)
-        # color_transfer.AddRGBPoint(1., 1, 0, 0)    
-
-
-
+        if color_data is not None:
+            color_transfer = vtkColorTransferFunction()
+            for cd, color in color_data.items():
+                color_transfer.AddRGBPoint(cd, color[0], color[1], color[2])     
+        
         i = 0
         count_nodes = positions.shape[0]
-        # pore_data = vtkDoubleArray()
-        # pore_data.SetNumberOfValues(count_nodes)
-        # pore_data.SetName("data")
+        pore_data = vtkDoubleArray()
+        pore_data.SetNumberOfValues(count_nodes)
+        pore_data.SetName("data")
         for (x, y, z) in positions:
             nodePoints.InsertPoint(i, x, y, z)
-            # pore_data.SetValue(i, ndcolors[i])
+            if ndcolors is not None:
+                pore_data.SetValue(i, ndcolors[i])
             i = i+1
             
 
         # Create a polydata to be glyphed.
         inputData = vtkPolyData()
         inputData.SetPoints(nodePoints)
-        # inputData.GetPointData().AddArray(pore_data)
+        inputData.GetPointData().AddArray(pore_data)
 
         # Use sphere as glyph source.
         balls = vtkSphereSource()
@@ -294,10 +294,10 @@ class Visualizer:
 
         glyphMapper = vtkPolyDataMapper()
         glyphMapper.SetInputConnection(glyphPoints.GetOutputPort())
-        # glyphMapper.SetScalarModeToUsePointFieldData()
-        # glyphMapper.SelectColorArray(pore_data.GetName())
-        # glyphMapper.SetLookupTable(color_transfer)
-        # glyphMapper.Update()
+        glyphMapper.SetScalarModeToUsePointFieldData()
+        glyphMapper.SelectColorArray(pore_data.GetName())
+        glyphMapper.SetLookupTable(color_transfer)
+        glyphMapper.Update()
 
         glyph = vtkActor()
         glyph.SetMapper(glyphMapper)
@@ -318,7 +318,7 @@ class Visualizer:
             # The edge e can be a 2-tuple (Graph) or a 3-tuple (Xgraph)
             lines.InsertNextCell(2)
             for n in (u, v):
-                ni = corr[n]
+                ni = corr[int(n)]
                 (x, y, z) = positions[ni, :]
                 points.InsertPoint(i, x, y, z)
                 lines.InsertCellPoint(i)
@@ -370,7 +370,7 @@ class Visualizer:
             layout = nx.kamada_kawai_layout(graph, dim=3)
         elif layout == 'spring':
             layout = nx.spring_layout(
-                graph, dim=3, **kwargs)
+                graph, dim=3)
         elif layout == 'spectral':
             layout = nx.spectral_layout(graph, dim=3)
         Visualizer.draw_nxvtk(graph, layout, size_node, size_edge, save_pos_path=save_pos_path, **kwargs)

@@ -65,15 +65,22 @@ class SimulationSettings:
     need_show: bool = False
     need_print: bool = False
     need_save_path: bool = False
+    
+
+
+class SimulationRunnerSettings:
+    greedy_mfpt_integral: bool = False
+
 
 
 class Simulator:
-    def __init__(self, igraph, ss: SimulationSettings) -> None:
+    def __init__(self, igraph, ss: SimulationSettings, srs:SimulationRunnerSettings) -> None:
         self.settings = ss
         self.igraph = igraph
+        self.sim_run_settings = srs
         pass
 
-    def sim_wrap(wrap):
+    def sim_wrap(wrap, srs:SimulationRunnerSettings):
         count, igraph, p, u = wrap
         res = []
         for _ in range(count):
@@ -81,7 +88,7 @@ class Simulator:
             unc = UncertaintyCond(p, u)
             ss = SimulationSettings(unc, need_print=False,
                                     source=source, target=target)
-            simulator = Simulator(igraph, ss)
+            simulator = Simulator(igraph, ss, srs)
             res.append(simulator.run())
         return res
 
@@ -160,7 +167,7 @@ class Simulator:
 
         return dj_path.length, gr_path.length
 
-    def simulation_up(graph, a_u, a_p, fname, run_count=100):
+    def simulation_up(graph, a_u, a_p, fname, run_count:int=100, srs:SimulationRunnerSettings = SimulationRunnerSettings()):
         num_proc = 10
         step = int(run_count/num_proc)
 
@@ -197,7 +204,7 @@ class Simulator:
                 t.start()
 
                 args = [(step, graph.copy(), p, u) for i in range(num_proc)]
-                sim_results = Parallel(n_jobs=num_proc)(delayed(Simulator.sim_wrap)(arg)
+                sim_results = Parallel(n_jobs=num_proc)(delayed(Simulator.sim_wrap)(arg, srs)
                                                         for arg in args)
 
                 dj_lengths = [r[0]

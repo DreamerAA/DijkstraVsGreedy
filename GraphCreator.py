@@ -25,7 +25,7 @@ class GraphCreator:
             if fdim == dim and fdiam == diameter:
                 return rc, rd, nx.read_pajek(path + file)
 
-    def generateRegularGraph(c, d):
+    def generateRegularGraph(c, d, step = 50):
         count_nodes = 2*c*d
         count = 5
 
@@ -34,7 +34,6 @@ class GraphCreator:
             max_dist = nx.diameter(rg)
             return rg, max_dist
 
-        step = 5000
         state = 0
         while True:
             print(f"Current count nodes: {count_nodes}")
@@ -44,15 +43,15 @@ class GraphCreator:
                                                  for i in range(count))
             diams = np.array([sr[1] for sr in sim_results])
             if np.all(diams < d):
-                if state == 1:
-                    step *= 2
-                    state = 0
+                # if state == 1:
+                #     step *= 2
+                #     state = 0
                 count_nodes += step
                 state = 1
             elif np.all(diams > d):
-                if state == -1:
-                    step /= 2
-                    state = 0
+                # if state == -1:
+                #     step /= 2
+                #     state = 0
                 count_nodes -= step
                 state = -1
             elif np.any(diams == d):
