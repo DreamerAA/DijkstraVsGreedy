@@ -144,8 +144,8 @@ class GraphCreator:
         ndata = pd.read_csv(fnodes, delimiter=';')
         edata = pd.read_csv(fedges, delimiter=';')
         
-        id1 = edata["node1id"].to_numpy(dtype=int)
-        id2 = edata["node2id"].to_numpy(dtype=int)
+        id1 = edata["node1id"].to_numpy(dtype=np.int32)
+        id2 = edata["node2id"].to_numpy(dtype=np.int32)
 
         xpos = ndata["pos_x"].to_numpy(dtype=float)
         ypos = ndata["pos_y"].to_numpy(dtype=float)

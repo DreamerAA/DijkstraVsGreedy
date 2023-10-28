@@ -304,12 +304,27 @@ class Visualizer:
         glyph.GetProperty().SetDiffuseColor(1., 0., 0.)
         glyph.GetProperty().SetSpecular(.3)
         glyph.GetProperty().SetSpecularPower(30)
+        
+        profile = None
+        if size_edge != 0:
+            # Generate the polyline for the spline.
+            points = vtkPoints()
+            edgeData = vtkPolyData()
 
-        # Generate the polyline for the spline.
-        points = vtkPoints()
-        edgeData = vtkPolyData()
+            # Edges
 
-        # Edges
+            lines = vtkCellArray()
+            lines.Use32BitStorage()
+            i = 0
+            count_edges = len(G.edges())
+            for u, v in G.edges():
+                # The edge e can be a 2-tuple (Graph) or a 3-tuple (Xgraph)
+                lines.InsertNextCell(2)
+                for n in (u, v):
+                    (x, y, z) = positions[int(n), :]
+                    points.InsertPoint(i, x, y, z)
+                    lines.InsertCellPoint(i)
+                    i = i+1
 
         lines = vtkCellArray()
         i = 0
@@ -324,24 +339,21 @@ class Visualizer:
                 lines.InsertCellPoint(i)
                 i = i+1
 
-        edgeData.SetPoints(points)
-        edgeData.SetLines(lines)
+            # Add thickness to the resulting line.
+            Tubes = vtkTubeFilter()
+            Tubes.SetNumberOfSides(3)
+            Tubes.SetInputData(edgeData)
+            Tubes.SetRadius(size_edge)
+            #
+            profileMapper = vtkPolyDataMapper()
+            profileMapper.SetInputConnection(Tubes.GetOutputPort())
 
-        # Add thickness to the resulting line.
-        Tubes = vtkTubeFilter()
-        Tubes.SetNumberOfSides(16)
-        Tubes.SetInputData(edgeData)
-        Tubes.SetRadius(size_edge)
-        #
-        profileMapper = vtkPolyDataMapper()
-        profileMapper.SetInputConnection(Tubes.GetOutputPort())
-
-        #
-        profile = vtkActor()
-        profile.SetMapper(profileMapper)
-        profile.GetProperty().SetDiffuseColor(0., 0., 1.)
-        profile.GetProperty().SetSpecular(.3)
-        profile.GetProperty().SetSpecularPower(30)
+            #
+            profile = vtkActor()
+            profile.SetMapper(profileMapper)
+            profile.GetProperty().SetDiffuseColor(0., 0., 1.)
+            profile.GetProperty().SetSpecular(.3)
+            profile.GetProperty().SetSpecularPower(30)
 
         ren.AddActor(glyph)
         ren.AddActor(profile)
