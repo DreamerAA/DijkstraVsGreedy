@@ -6,17 +6,17 @@ from joblib import Parallel, delayed
 import xarray as xr
 from os import listdir
 from os.path import isfile, join
-from GraphCreator import GraphCreator
-from Simulator import Simulator, SimulationSettings, UncertaintyCond
+from base.graph_creator import GraphCreator
+from base.simulator import Simulator, SimulationSettings, UncertaintyCond
 import pandas as pd
-from Timer import Timer
+from utils.timer import Timer
 import os.path
 from multiprocessing import Process, Pool
-from GraphCreator import GraphCreator
-from visualizer import Visualizer
+from base.graph_creator import GraphCreator
+from visualizer.visualizer import Visualizer
 import random
 import pickle
-from community_extractor import CommunityExtractor
+from base.community_extractor import CommunityExtractor
 import time
 
 def random_color():

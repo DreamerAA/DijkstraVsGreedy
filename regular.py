@@ -2,10 +2,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import networkx as nx
 import xarray as xr
-from GraphCreator import GraphCreator
-from Simulator import Simulator
-from GraphCreator import GraphCreator
-from visualizer import Visualizer
+from base.graph_creator import GraphCreator
+from base.simulator import Simulator
+from base.graph_creator import GraphCreator
+from visualizer.visualizer import Visualizer
 
 
 

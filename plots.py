@@ -4,7 +4,7 @@ import numpy as np
 import xarray as xr
 import networkx as nx
 from matplotlib.ticker import MaxNLocator
-from GraphCreator import GraphCreator
+from base.graph_creator import GraphCreator
 from vedo import *
 # noinspection PyUnresolvedReferences
 import vtkmodules.vtkInteractionStyle

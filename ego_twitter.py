@@ -13,11 +13,11 @@ from joblib import Parallel, delayed
 import xarray as xr
 from os import listdir
 from os.path import isfile, join
-from Simulator import Simulator, SimulationSettings, UncertaintyCond
+from base.simulator import Simulator, SimulationSettings, UncertaintyCond
 import pandas as pd
 import networkx as nx
-from Simulator import show_graph
-from Timer import Timer
+from base.simulator import show_graph
+from utils.timer import Timer
 
 
 def sim(igraph, p, u):

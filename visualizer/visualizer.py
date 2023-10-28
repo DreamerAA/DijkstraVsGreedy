@@ -91,6 +91,19 @@ class Visualizer:
     def critical_u(H):
         return H*np.exp(H + 1)
 
+    def z(c, H, u, p):
+        return 2*(c**H)*(u*(p**c)+1)/(u*p+1)
+
+    def z_p():
+        c, H = 4, 4
+        du = np.arange(3, 7)
+        u = 10**du
+        p = np.arange(0.0, 0.4, 0.05)
+        for u_el in u:
+            plt.plot(p, z(c, H, u_el, p))
+
+        plt.plot()
+
     def add_vert(x, color=None, ymax=310):
         plt.plot([x, x], [0, ymax], linewidth=3, color=color)
 
@@ -151,25 +164,19 @@ class Visualizer:
         else:
             data_for_vis = (G, positions, corr)
 
-        Visualizer.draw_graph(ren,data_for_vis,size_node,size_edge,save_pos_path,scale,**kwargs)
+        focal_pos, camera_pos = Visualizer.draw_graph(ren,data_for_vis,size_node,size_edge,save_pos_path,scale,**kwargs)
 
         renWin = vtkRenderWindow()
         renWin.AddRenderer(ren)
 
         style = vtkInteractorStyleTrackballCamera()
-        # style = vtkInteractorStyleFlight()
-        # style = vtkInteractorStyleTrackballActor()
         iren = vtkRenderWindowInteractor()
         iren.SetRenderWindow(renWin)
         iren.SetInteractorStyle(style)
 
-        # Add the actors
-        
-
         camera = ren.GetActiveCamera()
-        camera.SetFocalPoint(0, 0, 0)
-        camera.SetPosition(200, 200, 200)
-        # renWin.SetSize(640, 640)
+        camera.SetFocalPoint(focal_pos[0], focal_pos[1], focal_pos[2])
+        camera.SetPosition(camera_pos[0], camera_pos[1], camera_pos[2])
 
         renWin.Render()
         renWin.Render()
@@ -182,7 +189,6 @@ class Visualizer:
             cb.timerId = iren.CreateRepeatingTimer(500)
 
         renWin.Render()
-        # renWin.FullScreenOn()
         renWin.SetSize(1900,1080)
         iren.Start()
 
@@ -305,72 +311,49 @@ class Visualizer:
         glyph.GetProperty().SetSpecular(.3)
         glyph.GetProperty().SetSpecularPower(30)
         
-        profile = None
+
+        edgeData = vtkPolyData()
         if size_edge != 0:
-            # Generate the polyline for the spline.
             points = vtkPoints()
-            edgeData = vtkPolyData()
-
-            # Edges
-
             lines = vtkCellArray()
-            lines.Use32BitStorage()
             i = 0
-            count_edges = len(G.edges())
-            for u, v in G.edges():
+            for u, v in graph.edges():
                 # The edge e can be a 2-tuple (Graph) or a 3-tuple (Xgraph)
                 lines.InsertNextCell(2)
                 for n in (u, v):
-                    (x, y, z) = positions[int(n), :]
+                    ni = corr[int(n)]
+                    (x, y, z) = positions[ni, :]
                     points.InsertPoint(i, x, y, z)
                     lines.InsertCellPoint(i)
                     i = i+1
+            edgeData.SetPoints(points)
+            edgeData.SetLines(lines)
 
-        lines = vtkCellArray()
-        i = 0
-        count_edges = len(graph.edges())
-        for u, v in graph.edges():
-            # The edge e can be a 2-tuple (Graph) or a 3-tuple (Xgraph)
-            lines.InsertNextCell(2)
-            for n in (u, v):
-                ni = corr[int(n)]
-                (x, y, z) = positions[ni, :]
-                points.InsertPoint(i, x, y, z)
-                lines.InsertCellPoint(i)
-                i = i+1
+        # Add thickness to the resulting line.
+        Tubes = vtkTubeFilter()
+        Tubes.SetNumberOfSides(3)
+        Tubes.SetInputData(edgeData)
+        Tubes.SetRadius(size_edge)
+        #
+        profileMapper = vtkPolyDataMapper()
+        profileMapper.SetInputConnection(Tubes.GetOutputPort())
 
-            # Add thickness to the resulting line.
-            Tubes = vtkTubeFilter()
-            Tubes.SetNumberOfSides(3)
-            Tubes.SetInputData(edgeData)
-            Tubes.SetRadius(size_edge)
-            #
-            profileMapper = vtkPolyDataMapper()
-            profileMapper.SetInputConnection(Tubes.GetOutputPort())
-
-            #
-            profile = vtkActor()
-            profile.SetMapper(profileMapper)
-            profile.GetProperty().SetDiffuseColor(0., 0., 1.)
-            profile.GetProperty().SetSpecular(.3)
-            profile.GetProperty().SetSpecularPower(30)
+        #
+        profile = vtkActor()
+        profile.SetMapper(profileMapper)
+        profile.GetProperty().SetDiffuseColor(0., 0., 1.)
+        profile.GetProperty().SetSpecular(.3)
+        profile.GetProperty().SetSpecularPower(30)
 
         ren.AddActor(glyph)
         ren.AddActor(profile)
         ren.SetBackground(colors.GetColor3d("White"))
-
-    def z(c, H, u, p):
-        return 2*(c**H)*(u*(p**c)+1)/(u*p+1)
-
-    def z_p():
-        c, H = 4, 4
-        du = np.arange(3, 7)
-        u = 10**du
-        p = np.arange(0.0, 0.4, 0.05)
-        for u_el in u:
-            plt.plot(p, z(c, H, u_el, p))
-
-        plt.plot()
+        
+        mid = positions.mean(axis=0)
+        a_min = positions.min(axis=0)
+        a_max = positions.max(axis=0)
+        diff = a_max - a_min
+        return mid, mid + 2 * diff
 
     def showGraph(G, size_node=0.25, size_edge=0.02, layout='kamada',save_pos_path='', **kwargs):
         graph = nx.Graph(G)

@@ -7,8 +7,9 @@ from dataclasses import dataclass, field
 from typing import List
 import xarray as xr
 import os.path
-from Timer import Timer
 from joblib import Parallel, delayed
+
+from utils.timer import Timer
 
 
 @dataclass

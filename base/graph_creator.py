@@ -140,6 +140,14 @@ class GraphCreator:
         graph.add_edges_from(list(zip(id1, id2)))
         return graph
 
+    def getFacebook(path:str)->nx.Graph:
+        data = pd.read_csv(path, delimiter=',')
+        id1 = data["i1"].to_numpy()
+        id2 = data["i2"].to_numpy()
+        graph = nx.Graph()
+        graph.add_edges_from(list(zip(id1, id2)))
+        return graph
+
     def getVessel(fnodes,fedges,borders=np.array([[-np.inf,np.inf],[-np.inf,np.inf],[-np.inf,np.inf]])):
         ndata = pd.read_csv(fnodes, delimiter=';')
         edata = pd.read_csv(fedges, delimiter=';')
