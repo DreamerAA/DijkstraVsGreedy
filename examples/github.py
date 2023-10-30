@@ -22,7 +22,7 @@ from visualizer.visualizer import Visualizer
 
 
 
-m_data_path = "../data/Bitcoin/"
+m_data_path = "../data/GitHub/"
 
 def simulation_zup(graph, count_sim:int = 100):
     # FOR TESTING
@@ -35,7 +35,7 @@ def simulation_zup(graph, count_sim:int = 100):
     #                5e6, 1e7, 5e7, 1e8, 5e8, 1e9], dtype=np.float64)
     # a_p = np.arange(0.0, 0.051, 0.002, dtype=np.float64)
 
-    fname = m_data_path + f"./1_u={a_u[0]}:(*10):{a_u[-1]}_p={a_p[0]}:0.01:{a_p[-1]}_count_sim={count_sim}.nc"
+    fname = m_data_path + f"/1_u={a_u[0]}:(*10):{a_u[-1]}_p={a_p[0]}:0.01:{a_p[-1]}_count_sim={count_sim}.nc"
 
     Simulator.simulation_up(graph, a_u, a_p, fname, count_sim)
     return fname 
@@ -43,34 +43,22 @@ def simulation_zup(graph, count_sim:int = 100):
 
 def main():
     
-    fname = m_data_path + "./soc-sign-bitcoinotc.csv"
+    fname = m_data_path + "/git_web_ml/musae_git_edges.csv"
     
     data = pd.read_csv(fname, delimiter=',', on_bad_lines='skip')
-    sources = data["source"].to_numpy(dtype=np.int32) - 1
-    targets = data["target"].to_numpy(dtype=np.int32) - 1
+    sources = data["id_1"].to_numpy(dtype=np.int32)
+    targets = data["id_2"].to_numpy(dtype=np.int32)
 
     print(sources.min(), sources.max())
-    print(targets.min(), targets.max())
-    max_num = max(sources.max(), targets.max())
-    counter = 0
-    old2new = np.zeros(shape=(max_num+1,),dtype=np.int32)
-    for i in range(max_num + 1):
-        old2new[i] = counter
-        if i in sources or i in targets:
-            counter += 1
-        
-    sources = old2new[sources]
-    targets = old2new[targets]    
+    print(targets.min(), targets.max()) 
 
-    # layout = "kamada"
+    layout = "kamada"
     # layout = "spring"
-    layout = "spectral"
-
+    # layout = "spectral"
 
     save_pos_path= (True, m_data_path+f"./{layout}_full_layout_pos.npy",
                     m_data_path+f"./{layout}_full_layout_corr.npy")
     
-
     graph = nx.Graph()
     graph.add_edges_from(list(zip(sources, targets)))
     Visualizer.showGraph(graph, layout=layout, save_pos_path = save_pos_path)

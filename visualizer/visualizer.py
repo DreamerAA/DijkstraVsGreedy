@@ -5,6 +5,7 @@ import xarray as xr
 import networkx as nx
 from matplotlib.ticker import MaxNLocator
 import math as m
+from pathlib import Path
 import vtkmodules.vtkRenderingOpenGL2
 from vtkmodules.vtkCommonColor import vtkNamedColors
 from vtkmodules.vtkCommonCore import vtkDoubleArray
@@ -120,7 +121,7 @@ class Visualizer:
         plt.yticks(None, fontsize=18)
         return degree, hist
 
-    def draw_nxvtk(G, node_pos_corr, size_node=0.25, size_edge=0.02, save_pos_path='', scale="full_by_1", **kwargs):
+    def draw_nxvtk(G, node_pos_corr, size_node=0.25, size_edge=0.02, scale="full_by_1", **kwargs):
         """
         Draw networkx graph in 3d with nodes at node_pos.
 
@@ -143,28 +144,14 @@ class Visualizer:
         # Now create the RenderWindow, Renderer and Interactor
         ren = vtkRenderer()
 
-        positions = None
-        corr = None
-        if type(dict()) == type(node_pos_corr):
-            nums = np.array(list(node_pos_corr.keys()),dtype=int)
-            positions = np.zeros(shape=(nums.shape[0], 3), dtype=float)
-            corr = np.zeros(shape=(nums.max() + 1,), dtype=int)
-            i = 0
-            for k in node_pos_corr.keys():
-                positions[i, :] = node_pos_corr[k]
-                corr[int(k)] = i
-                i = i + 1
-        else:
-            positions = node_pos_corr[0]
-            corr = node_pos_corr[1]
-
+        positions, corr = node_pos_corr
         
-        if G.nodes[0]['type_id'] is not None and "colors_data" in kwargs:
+        if "type_id" in G.nodes[0] and "colors_data" in kwargs:
             data_for_vis = (G, positions, corr, kwargs["colors_data"])
         else:
             data_for_vis = (G, positions, corr)
 
-        focal_pos, camera_pos = Visualizer.draw_graph(ren,data_for_vis,size_node,size_edge,save_pos_path,scale,**kwargs)
+        focal_pos, camera_pos = Visualizer.draw_graph(ren,data_for_vis,size_node,size_edge,scale,**kwargs)
 
         renWin = vtkRenderWindow()
         renWin.AddRenderer(ren)
@@ -212,7 +199,11 @@ class Visualizer:
 
             rw.AddRenderer(ren)
             ren.SetViewport(xmins[i], ymins[i], xmaxs[i], ymaxs[i])
-            Visualizer.draw_graph(ren, data, size_node,size_edge,save_pos_path,scale,**kwargs)
+
+
+        #    positions = node_pos_corr[0]
+            # corr = node_pos_corr[1]
+            Visualizer.draw_graph(ren, data, size_node,size_edge,scale,**kwargs)
 
 
         if 'animation' in kwargs:
@@ -225,12 +216,13 @@ class Visualizer:
         rw.Render()
         iren.Start()
 
-    def draw_graph(ren, graph_pos_corr, size_node=0.25, size_edge=0.02, save_pos_path='', scale="full_by_1", **kwargs):
+    def draw_graph(ren, graph_pos_corr, size_node=0.25, size_edge=0.02, scale="full_by_1", **kwargs):
         mrange = 1e2
         i = 0
 
         ndcolors = None
         tdcolors = None
+        color_data = None
         if len(graph_pos_corr) == 3:
             graph, positions, corr = graph_pos_corr
         elif len(graph_pos_corr) == 4:
@@ -254,18 +246,12 @@ class Visualizer:
                     d = (positions[:, i] - a_min[i])/dmax
                     positions[:, i] = ((d - d.max()/2))*mrange
 
-        print( f"min = {positions.min(axis=0)}, max = {positions.max(axis=0)}")
-
-        if len(save_pos_path) != 0:
-            with open(save_pos_path[0], 'wb') as f:
-                np.save(f, positions)
-            with open(save_pos_path[1], 'wb') as f:
-                np.save(f, corr)
-                
+        print( f"min = {positions.min(axis=0)}, max = {positions.max(axis=0)}")                
 
         # set node positions
         colors = vtkNamedColors()
         nodePoints = vtkPoints()
+        color_transfer = None
         if color_data is not None:
             color_transfer = vtkColorTransferFunction()
             for cd, color in color_data.items():
@@ -355,20 +341,46 @@ class Visualizer:
         diff = a_max - a_min
         return mid, mid + 2 * diff
 
-    def showGraph(G, size_node=0.25, size_edge=0.02, layout='kamada',save_pos_path='', **kwargs):
+    def showGraph(G, size_node=0.25, size_edge=0.02, layout='kamada',save_pos_path=(False), **kwargs):
         graph = nx.Graph(G)
 
-        # print(f"sqrt={np.sqrt(len(graph.nodes()))}")
-        edges = [(i, j, 1) for i, j in graph.edges()]
-        graph.add_weighted_edges_from(edges)
-        if layout == 'kamada':
-            layout = nx.kamada_kawai_layout(graph, dim=3)
-        elif layout == 'spring':
-            layout = nx.spring_layout(
-                graph, dim=3)
-        elif layout == 'spectral':
-            layout = nx.spectral_layout(graph, dim=3)
-        Visualizer.draw_nxvtk(graph, layout, size_node, size_edge, save_pos_path=save_pos_path, **kwargs)
+        positions = None
+        corr = None
+        if save_pos_path[0] and Path(save_pos_path[1]).is_file() and Path(save_pos_path[2]).is_file():
+            with open(save_pos_path[1], 'rb') as f:
+                positions = np.load(f)
+            with open(save_pos_path[2], 'rb') as f:
+                corr = np.load(f)
+        else:
+            # print(f"sqrt={np.sqrt(len(graph.nodes()))}")
+            edges = [(i, j, 1) for i, j in graph.edges()]
+            graph.add_weighted_edges_from(edges)
+            
+            if layout == 'kamada':
+                layout = nx.kamada_kawai_layout(graph, dim=3)
+            elif layout == 'spring':
+                layout = nx.spring_layout(
+                    graph, dim=3)
+            elif layout == 'spectral':
+                layout = nx.spectral_layout(graph, dim=3)
+
+            if type(dict()) == type(layout):
+                nums = np.array(list(layout.keys()),dtype=int)
+                positions = np.zeros(shape=(nums.shape[0], 3), dtype=float)
+                corr = np.zeros(shape=(nums.max() + 1,), dtype=int)
+                i = 0
+                for k in layout.keys():
+                    positions[i, :] = layout[k]
+                    corr[int(k)] = i
+                    i = i + 1
+
+            if save_pos_path[0]:
+                with open(save_pos_path[1], 'wb') as f:
+                    np.save(f, positions)
+                with open(save_pos_path[2], 'wb') as f:
+                    np.save(f, corr)
+        
+        Visualizer.draw_nxvtk(graph, (positions, corr), size_node, size_edge, save_pos_path=save_pos_path, **kwargs)
 
     # 'viridis', 'RdBu', 'Spectral', 'bwr', 'seismic'
 
